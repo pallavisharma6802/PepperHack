@@ -60,6 +60,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+server.log
+nohup.out
 
 # Vite
 .vite/
@@ -71,5 +73,7 @@ yarn-error.log*
 docx_extract/
 project_plan_extract.txt
 
-# Internal docs (don't push)
-README.md
+# Backend temp files
+backend/temp_*.jpg
+backend/temp_*.jpeg
+backend/temp_*.png
