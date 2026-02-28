@@ -1,0 +1,94 @@
+{
+  "dishes": [
+    {
+      "id": "dish_001",
+      "name": "Butter Burger",
+      "description": "Classic Wisconsin butter burger with caramelized onions",
+      "price": "$12.99",
+      "category": "Mains",
+      "photo_url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd",
+      "must_try": true,
+      "must_try_reason": "Local favorite, consistently praised for its quality beef and butter-soaked bun",
+      "macros": {
+        "calories": 650,
+        "protein_g": 32,
+        "carbs_g": 45,
+        "fat_g": 38,
+        "confidence": "high"
+      },
+      "allergens": ["Dairy", "Gluten"]
+    },
+    {
+      "id": "dish_002",
+      "name": "Fried Cheese Curds",
+      "description": "Golden-fried Wisconsin cheese curds with ranch",
+      "price": "$8.99",
+      "category": "Starters",
+      "photo_url": "https://images.unsplash.com/photo-1613478223719-2ab802602423",
+      "must_try": true,
+      "must_try_reason": "Wisconsin staple, can't visit Madison without trying these",
+      "macros": {
+        "calories": 480,
+        "protein_g": 18,
+        "carbs_g": 32,
+        "fat_g": 34,
+        "confidence": "high"
+      },
+      "allergens": ["Dairy", "Gluten"]
+    },
+    {
+      "id": "dish_003",
+      "name": "Madison Old Fashioned",
+      "description": "Wisconsin-style brandy old fashioned, sweet or sour",
+      "price": "$9.00",
+      "category": "Drinks",
+      "photo_url": "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b",
+      "must_try": false,
+      "must_try_reason": null,
+      "macros": {
+        "calories": 180,
+        "protein_g": 0,
+        "carbs_g": 12,
+        "fat_g": 0,
+        "confidence": "high"
+      },
+      "allergens": []
+    },
+    {
+      "id": "dish_004",
+      "name": "Fish Fry Platter",
+      "description": "Beer-battered cod with fries, coleslaw, and rye bread",
+      "price": "$15.99",
+      "category": "Mains",
+      "photo_url": "https://images.unsplash.com/photo-1552566626-52f8b828add9",
+      "must_try": true,
+      "must_try_reason": "Friday fish fry is a Wisconsin tradition, best value on the menu",
+      "macros": {
+        "calories": 890,
+        "protein_g": 42,
+        "carbs_g": 78,
+        "fat_g": 48,
+        "confidence": "medium"
+      },
+      "allergens": ["Gluten", "Dairy"]
+    },
+    {
+      "id": "dish_005",
+      "name": "Chocolate Cake",
+      "description": "Decadent chocolate layer cake with buttercream",
+      "price": "$7.99",
+      "category": "Desserts",
+      "photo_url": "https://images.unsplash.com/photo-1578985545062-69928b1d9587",
+      "must_try": false,
+      "must_try_reason": null,
+      "macros": {
+        "calories": 520,
+        "protein_g": 6,
+        "carbs_g": 68,
+        "fat_g": 26,
+        "confidence": "high"
+      },
+      "allergens": ["Dairy", "Gluten", "Eggs"]
+    }
+  ]
+}

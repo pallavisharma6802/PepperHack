@@ -168,12 +168,27 @@ class RestaurantsResponse(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     """Request body for POST /analyze."""
-    restaurant_id: str  = Field(..., description="Google Places place_id")
+    restaurant_id: str  = Field(..., min_length=1, max_length=256, description="Google Places place_id")
     image_base64:  Optional[str] = Field(
         default=None,
+        max_length=10_000_000,
         description="Base64-encoded menu photo from the camera. Null → use restaurant name for text-only scan.",
     )
     mock: bool = Field(
         default=False,
         description="If true, return cached demo JSON instantly (demo fallback).",
     )
+    
+    @classmethod
+    def validate_image(cls, v: Optional[str]) -> Optional[str]:
+        """Validate base64 image data."""
+        if v is None:
+            return v
+        
+        import base64
+        try:
+            base64.b64decode(v)
+        except Exception:
+            raise ValueError("Invalid base64 image data")
+        
+        return v
