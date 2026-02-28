@@ -1,0 +1,17 @@
+{
+  "name": "MadisonBites",
+  "short_name": "MadisonBites",
+  "description": "Point your phone at any Madison menu. Watch dishes come alive.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080604",
+  "theme_color": "#f5a623",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
