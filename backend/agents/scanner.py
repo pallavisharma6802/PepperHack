@@ -1,161 +1,175 @@
 """
-backend/agents/scanner.py
---------------------------
-MenuScannerAgent — reads a menu image via Gemini Vision and returns
-structured dish JSON matching the shared schema.
-
-Owned by: P2 (prompt engineering) + P1 (wiring into ADK root agent)
+MenuScannerAgent - Extracts structured dish data from menu images.
+Uses Gemini Vision API with proper async patterns.
 """
 
 from __future__ import annotations
 
-import json
+import asyncio
 import os
-import re
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
-from google import genai
-from google.genai import types
-from dotenv import load_dotenv
 from PIL import Image
+import google.genai as genai
+from google.genai import types
+from google.adk.agents import Agent
+from google.adk.tools import FunctionTool
 
 from backend.schema import Dish, DishCategory
+from backend.config import config
+from backend.logger import get_logger
 
-# ---------------------------------------------------------------------------
-# Setup
-# ---------------------------------------------------------------------------
+logger = get_logger(__name__)
 
-load_dotenv(Path(__file__).parent.parent / ".env")
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-
-PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "scanner.txt"
-SYSTEM_PROMPT = PROMPT_PATH.read_text(encoding="utf-8")
-
-MODEL_NAME = "gemini-2.5-flash"
+client = genai.Client(api_key=config.GEMINI_API_KEY) if config.GEMINI_API_KEY else None
 
 
-# ---------------------------------------------------------------------------
-# Core scanner function
-# ---------------------------------------------------------------------------
+def _load_prompt() -> str:
+    """Load scanner prompt from file."""
+    prompt_path = Path(__file__).parent.parent / "prompts" / "scanner.txt"
+    if prompt_path.exists():
+        return prompt_path.read_text()
+    
+    return """Extract all menu items from this image. For each dish, provide:
+- name: The dish name
+- description: Brief description if available
+- price: Price as float (null if not shown)
+- category: One of: appetizer, main_course, dessert, beverage, side, other
 
-def scan_menu(image_path: str, restaurant_name: str = "") -> list[Dish]:
-    """
-    Given a path to a menu image, call Gemini Vision and return a list of Dish objects.
-
-    Args:
-        image_path:       Absolute or relative path to the menu photo.
-        restaurant_name:  Optional — appended to the prompt for context.
-
-    Returns:
-        List of Dish objects (photo_url, must_try, macros, allergens all null/default —
-        those are filled by downstream agents).
-    """
-    image = Image.open(image_path)
-
-    context = ""
-    if restaurant_name:
-        context = f"\n\nThis menu is from the restaurant: {restaurant_name} (Madison, WI)."
-
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=[SYSTEM_PROMPT + context, image],
-        config=types.GenerateContentConfig(
-            temperature=0.1,            # low temp = more faithful extraction, less creativity
-            max_output_tokens=16384,    # large menus (60+ dishes) need this headroom
-            response_mime_type="application/json",  # forces valid JSON, no stray newlines
-        ),
-    )
-
-    raw = response.text.strip()
-    dishes = _parse_response(raw)
-    return dishes
+Return as JSON array of dishes."""
 
 
-# ---------------------------------------------------------------------------
-# Response parser + validator
-# ---------------------------------------------------------------------------
-
-def _parse_response(raw: str) -> list[Dish]:
-    """
-    Parse Gemini's raw text output into a list of validated Dish objects.
-    Handles common issues: markdown fences, extra text before/after JSON.
-    """
-    # Strip markdown code fences if Gemini wraps output in ```json ... ```
-    cleaned = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
-    cleaned = re.sub(r"```$", "", cleaned, flags=re.MULTILINE).strip()
-
-    # Find the outermost JSON object by locating first { and last }
-    start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start == -1 or end == -1:
-        raise ValueError(f"No JSON object found in Gemini response:\n{raw}")
-
-    try:
-        data = json.loads(cleaned[start:end + 1])
-    except json.JSONDecodeError as e:
-        raise ValueError(f"JSON parse error: {e}\nRaw output:\n{cleaned[start:end+1]}") from e
-    raw_dishes = data.get("dishes", [])
-
-    dishes: list[Dish] = []
-    for i, item in enumerate(raw_dishes):
-        # Normalise category — fallback to MAINS if unknown
-        category_str = item.get("category", "Mains")
-        category = _normalise_category(category_str)
-
-        dish = Dish(
-            id=item.get("id", f"dish_{i+1:03d}"),
-            name=item.get("name", "").strip(),
-            description=item.get("description", "").strip(),
-            category=category,
-            price=item.get("price", "").strip(),
-        )
-        # Skip empty-name dishes (can happen with blurry menus)
-        if dish.name:
-            dishes.append(dish)
-
-    return dishes
-
-
-def _normalise_category(raw: str) -> DishCategory:
-    """Map any category string Gemini returns to a valid DishCategory."""
-    mapping = {
-        "must try":  DishCategory.MUST_TRY,
-        "must-try":  DishCategory.MUST_TRY,
-        "starter":   DishCategory.STARTERS,
-        "starters":  DishCategory.STARTERS,
+def _normalize_category(category_str: str) -> DishCategory:
+    """Normalize category string to enum per schema.py."""
+    category_map = {
         "appetizer": DishCategory.STARTERS,
-        "appetizers":DishCategory.STARTERS,
-        "main":      DishCategory.MAINS,
-        "mains":     DishCategory.MAINS,
-        "entree":    DishCategory.MAINS,
-        "entrees":   DishCategory.MAINS,
-        "dessert":   DishCategory.DESSERTS,
-        "desserts":  DishCategory.DESSERTS,
-        "drink":     DishCategory.DRINKS,
-        "drinks":    DishCategory.DRINKS,
-        "beverage":  DishCategory.DRINKS,
-        "beverages": DishCategory.DRINKS,
+        "starter": DishCategory.STARTERS,
+        "starters": DishCategory.STARTERS,
+        "main": DishCategory.MAINS,
+        "main_course": DishCategory.MAINS,
+        "mains": DishCategory.MAINS,
+        "entree": DishCategory.MAINS,
+        "dessert": DishCategory.DESSERTS,
+        "desserts": DishCategory.DESSERTS,
+        "sweet": DishCategory.DESSERTS,
+        "beverage": DishCategory.DRINKS,
+        "drink": DishCategory.DRINKS,
+        "drinks": DishCategory.DRINKS,
+        "must_try": DishCategory.MUST_TRY,
     }
-    return mapping.get(raw.strip().lower(), DishCategory.MAINS)
+    return category_map.get(category_str.lower(), DishCategory.MAINS)
 
 
-# ---------------------------------------------------------------------------
-# Quick local test  (run: python -m backend.agents.scanner <image_path>)
-# ---------------------------------------------------------------------------
+def _parse_gemini_response(response: Any, restaurant_name: str) -> list[Dish]:
+    """Parse Gemini API response into Dish objects."""
+    dishes = []
+    
+    try:
+        import json
+        import re
+        
+        text = response.text if hasattr(response, 'text') else str(response)
+        
+        json_match = re.search(r'```json\s*(\[.*?\])\s*```', text, re.DOTALL)
+        if json_match:
+            text = json_match.group(1)
+        elif text.strip().startswith('['):
+            pass
+        else:
+            array_match = re.search(r'\[.*\]', text, re.DOTALL)
+            if array_match:
+                text = array_match.group(0)
+        
+        data = json.loads(text)
+        
+        if not isinstance(data, list):
+            logger.warning("gemini_response_not_list", type=type(data).__name())
+            return []
+        
+        for idx, item in enumerate(data):
+            if not isinstance(item, dict):
+                continue
+            
+            try:
+                # Generate unique ID per schema.py requirement
+                dish_id = f"dish_{idx+1:03d}"
+                
+                dish = Dish(
+                    id=dish_id,
+                    name=item.get("name", "Unknown"),
+                    description=item.get("description", ""),
+                    price=item.get("price", ""),
+                    category=_normalize_category(item.get("category", "mains")),
+                )
+                dishes.append(dish)
+            except Exception as e:
+                logger.warning("dish_parse_error", item=item, error=str(e))
+                continue
+        
+        logger.info("dishes_parsed", count=len(dishes))
+        
+    except Exception as e:
+        logger.error("gemini_response_parse_error", error=str(e))
+    
+    return dishes
 
-if __name__ == "__main__":
-    import sys
 
-    if len(sys.argv) < 2:
-        print("Usage: python -m backend.agents.scanner <path_to_menu_image>")
-        sys.exit(1)
+async def scan_menu_async(image_path: str, restaurant_name: str = "") -> list[Dish]:
+    """
+    Asynchronously scan menu image and extract dishes using Gemini Vision.
+    """
+    if not config.GEMINI_API_KEY:
+        logger.error("gemini_api_key_missing")
+        return []
+    
+    if not os.path.exists(image_path):
+        logger.error("image_not_found", path=image_path)
+        return []
+    
+    try:
+        logger.info("scanning_menu", image=image_path, restaurant=restaurant_name)
+        
+        loop = asyncio.get_event_loop()
+        image = await loop.run_in_executor(None, Image.open, image_path)
+        
+        prompt = _load_prompt()
+        
+        response = await loop.run_in_executor(
+            None,
+            lambda: client.models.generate_content(
+                model="gemini-2.0-flash-exp",
+                contents=[prompt, image],
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    response_mime_type="application/json",
+                ),
+            )
+        )
+        
+        dishes = _parse_gemini_response(response, restaurant_name)
+        logger.info("menu_scan_complete", dish_count=len(dishes))
+        
+        return dishes
+        
+    except Exception as e:
+        logger.error("menu_scan_failed", error=str(e), path=image_path)
+        return []
 
-    img = sys.argv[1]
-    restaurant = sys.argv[2] if len(sys.argv) > 2 else ""
-    print(f"Scanning: {img}  (restaurant: '{restaurant}')\n")
 
-    results = scan_menu(img, restaurant)
-    print(f"Extracted {len(results)} dishes:\n")
-    for d in results:
-        print(f"  [{d.category.value:10s}]  {d.name:40s}  {d.price}")
+async def scan_menu_tool(image_path: str, restaurant_name: str = "") -> dict:
+    """Extract dishes from a menu image using Gemini Vision."""
+    dishes = await scan_menu_async(image_path, restaurant_name)
+    return {
+        "dishes": [dish.model_dump() for dish in dishes],
+        "count": len(dishes),
+    }
+
+
+menu_scanner_agent = Agent(
+    name="MenuScanner",
+    description="Extracts structured dish data from restaurant menu images",
+    model="gemini-2.0-flash-exp",
+    tools=[FunctionTool(scan_menu_tool)],
+    instruction="You are a menu scanner that extracts dish information from images. Use the scan_menu_tool to process menu images.",
+)
