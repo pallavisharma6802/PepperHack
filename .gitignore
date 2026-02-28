@@ -4,12 +4,13 @@ node_modules/
 # Build output
 dist/
 build/
+.next/
 *.local
 
-# Environment & secrets
+# Environment & secrets — NEVER commit these
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 .env.development.local
 .env.test.local
 .env.production.local
@@ -18,6 +19,7 @@ build/
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
 *.so
 .Python
 .venv/
@@ -25,6 +27,9 @@ venv/
 ENV/
 *.egg-info/
 .eggs/
+
+# Test artifacts
+backend/_test_schema.py
 
 # IDE & editors
 .idea/
