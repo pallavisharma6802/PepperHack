@@ -38,6 +38,18 @@ backend/_test_schema.py
 *.swo
 *~
 
+# Auto-generated cache — never commit
+backend/mock/photo_cache.json
+
+# Local test menu images — not needed in repo
+backend/menu_images/
+
+# Project planning docs — internal only
+MadisonBites_FullPlan_v2.docx
+
+# macOS
+.DS_Store
+
 # OS
 .DS_Store
 Thumbs.db
