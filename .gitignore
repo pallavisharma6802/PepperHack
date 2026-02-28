@@ -1,0 +1,25 @@
+# Environment variables — NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Test artifacts
+backend/_test_schema.py
+
+# macOS
+.DS_Store
+
+# Node (for frontend later)
+node_modules/
+dist/
+.next/
