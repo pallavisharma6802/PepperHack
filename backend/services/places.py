@@ -25,6 +25,7 @@ from backend.logger import get_logger
 logger = get_logger(__name__)
 
 PLACES_API_BASE = "https://places.googleapis.com/v1/places:searchNearby"
+NEARBY_MAX_PER_REQUEST = 20
 
 
 @dataclass
@@ -132,20 +133,28 @@ async def search_restaurants(
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.priceLevel,places.types,places.currentOpeningHours,places.photos"
     }
     
-    payload = {
-        "includedTypes": ["restaurant"],
-        "maxResultCount": config.MAX_RESTAURANTS,
-        "locationRestriction": {
-            "circle": {
-                "center": {"latitude": lat, "longitude": lng},
-                "radius": radius
+    # Grid search: Places API caps at 20 per request, so we query 5 centers to get ~100
+    offset = radius * 0.35
+    centers = [
+        (lat, lng),
+        (lat + offset / 111000, lng),
+        (lat - offset / 111000, lng),
+        (lat, lng + offset / (111000 * 0.7)),
+        (lat, lng - offset / (111000 * 0.7)),
+    ]
+    sub_radius = int(radius * 0.6)
+    
+    async def _fetch_batch(center_lat: float, center_lng: float) -> list:
+        payload = {
+            "includedTypes": ["restaurant"],
+            "maxResultCount": NEARBY_MAX_PER_REQUEST,
+            "locationRestriction": {
+                "circle": {
+                    "center": {"latitude": center_lat, "longitude": center_lng},
+                    "radius": sub_radius
+                }
             }
         }
-    }
-    
-    try:
-        logger.info("calling_places_api", lat=lat, lng=lng, radius=radius)
-        
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(
             None,
@@ -154,15 +163,27 @@ async def search_restaurants(
             headers,
             payload,
         )
-        
-        logger.info("places_api_success", count=len(data.get("places", [])))
+        return data.get("places", [])
+    
+    try:
+        logger.info("calling_places_api_grid", centers=len(centers), radius=radius)
+        results = await asyncio.gather(*[_fetch_batch(clat, clng) for clat, clng in centers])
+        all_places = []
+        seen_ids = set()
+        for places in results:
+            for p in places:
+                pid = p.get("id")
+                if pid and pid not in seen_ids:
+                    seen_ids.add(pid)
+                    all_places.append(p)
+        logger.info("places_api_success", count=len(all_places))
         
     except Exception as e:
         logger.error("places_api_failed", error=str(e), fallback="demo_restaurants")
         return DEMO_RESTAURANTS
     
     restaurants = []
-    for place in data.get("places", []):
+    for place in all_places[:config.MAX_RESTAURANTS]:
         try:
             photo_url = None
             if place.get("photos"):
