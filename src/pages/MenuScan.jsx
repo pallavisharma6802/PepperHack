@@ -98,7 +98,7 @@ export function MenuScan({ restaurant, onDone, onBack }) {
         </div>
       </div>
 
-      <div className="mx-5 flex-1 rounded-2xl overflow-hidden relative border border-dim bg-[#050403] min-h-[280px] max-h-[360px]">
+      <div className="mx-5 flex-1 rounded-3xl overflow-hidden relative border border-dim bg-[#050403] min-h-[280px] max-h-[360px]">
         {/* Camera / placeholder */}
         {scanPhase !== 'idle' ? (
           <video
@@ -131,10 +131,10 @@ export function MenuScan({ restaurant, onDone, onBack }) {
                 bottom: !isTop ? 16 : undefined,
                 left: isLeft ? 16 : undefined,
                 right: !isLeft ? 16 : undefined,
-                borderTop: isTop ? '2px solid var(--tw-color-amber)' : undefined,
-                borderBottom: !isTop ? '2px solid var(--tw-color-amber)' : undefined,
-                borderLeft: isLeft ? '2px solid var(--tw-color-amber)' : undefined,
-                borderRight: !isLeft ? '2px solid var(--tw-color-amber)' : undefined,
+                borderTop: isTop ? '2px solid #CF8008' : undefined,
+                borderBottom: !isTop ? '2px solid #CF8008' : undefined,
+                borderLeft: isLeft ? '2px solid #CF8008' : undefined,
+                borderRight: !isLeft ? '2px solid #CF8008' : undefined,
                 opacity: scanPhase !== 'idle' ? 1 : 0.5,
               }}
             />
@@ -189,7 +189,7 @@ export function MenuScan({ restaurant, onDone, onBack }) {
         {scanPhase === 'idle' ? (
           <button
             onClick={startScan}
-            className="w-full py-4 bg-amber text-black border-none rounded-xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer"
+            className="w-full py-4 bg-amber text-black border-none rounded-2xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer"
             style={{ animation: 'glow 2s ease-in-out infinite' }}
           >
             Start Scan
@@ -197,7 +197,7 @@ export function MenuScan({ restaurant, onDone, onBack }) {
         ) : scanPhase === 'done' ? (
           <button
             onClick={handleDone}
-            className="w-full py-4 bg-amber text-black border-none rounded-xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer"
+            className="w-full py-4 bg-amber text-black border-none rounded-2xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer"
             style={{ animation: 'glow 2s ease-in-out infinite' }}
           >
             View {dishCount || dishList.length} Dishes →

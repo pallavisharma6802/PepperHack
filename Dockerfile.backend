@@ -1,0 +1,23 @@
+# ── MadisonBites Backend ────────────────────────────────────────────────────
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install OS-level deps needed by some packages (e.g. Pillow)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies first (layer caching)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source
+COPY . .
+
+# Expose backend port
+EXPOSE 2026
+
+# Run with uvicorn
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "2026"]

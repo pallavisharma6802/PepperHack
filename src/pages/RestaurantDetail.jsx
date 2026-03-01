@@ -98,13 +98,13 @@ export function RestaurantDetail({ restaurant, onScan, onBack }) {
           ‹
         </button>
         <div className="absolute bottom-4 left-5 right-5">
-          <h1 className="font-display font-bold text-4xl text-cream leading-tight mb-1">
+          <h1 className="font-display font-bold text-4xl leading-tight mb-1" style={{ color: '#FFFFFF' }}>
             {restaurant.name}
           </h1>
           <div className="flex gap-3 items-center">
             <span className="text-amber text-sm font-bold">★ {restaurant.rating ?? '—'}</span>
-            <span className="text-muted text-xs">{restaurant.price || '—'}</span>
-            <span className="text-muted text-xs">{restaurant.cuisine || '—'}</span>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.65)' }}>{restaurant.price || '—'}</span>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.65)' }}>{restaurant.cuisine || '—'}</span>
             <span
               className={`text-xs font-bold ${restaurant.open ? 'text-safe' : 'text-danger'}`}
             >

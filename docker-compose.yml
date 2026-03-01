@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  # ── Python / FastAPI backend ─────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: madisonbites-backend
+    env_file:
+      - .env                    # GEMINI_API_KEY, GOOGLE_API_KEY, etc.
+    environment:
+      # Allow requests from the nginx frontend container
+      ALLOWED_ORIGINS: "http://localhost,http://localhost:80,http://frontend"
+    ports:
+      - "2026:2026"             # also reachable directly for debugging
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  # ── React / Vite frontend (built → served by nginx) ──────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_GOOGLE_MAPS_KEY: "${VITE_GOOGLE_MAPS_KEY:-}"
+    container_name: madisonbites-frontend
+    ports:
+      - "80:80"                 # open http://localhost in your browser
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge

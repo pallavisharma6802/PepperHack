@@ -20,8 +20,35 @@
 }
 
 body {
-  background: #080604;
-  color: #f7efe0;
-  font-family: 'Syne', sans-serif;
+  background: #F7F5F0;
+  color: #1A1714;
+  font-family: 'DM Sans', sans-serif;
   overflow-x: hidden;
+}
+
+.dish-develop {
+  animation: dishDevelop 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes dishDevelop {
+  from {
+    filter: blur(14px) brightness(0.5) saturate(0.3);
+    transform: scale(1.04);
+  }
+  to {
+    filter: blur(0) brightness(1) saturate(1);
+    transform: scale(1);
+  }
+}
+
+.glass {
+  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.must-try-badge {
+  background: linear-gradient(135deg, rgba(207,128,8,0.12), rgba(207,128,8,0.04));
+  border: 1px solid rgba(207,128,8,0.22);
+  color: #CF8008;
 }

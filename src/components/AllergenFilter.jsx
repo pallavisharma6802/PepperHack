@@ -49,8 +49,8 @@ export function AllergenFilter({ onClose }) {
 
       {/* Panel */}
       <motion.div
-        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-surface border-t border-dim px-5 pt-4 pb-10 overflow-y-auto"
-        style={{ maxWidth: 390, margin: '0 auto', maxHeight: '88vh' }}
+        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-surface px-5 pt-4 pb-10 overflow-y-auto"
+        style={{ maxWidth: 390, margin: '0 auto', maxHeight: '88vh', boxShadow: '0 -8px 40px rgba(0,0,0,0.10)' }}
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
@@ -104,7 +104,7 @@ export function AllergenFilter({ onClose }) {
             value={customText}
             onChange={(e) => setCustomText(e.target.value)}
             placeholder="e.g. sesame, mustard, peanuts"
-            className="w-full bg-bg2 text-cream text-sm font-ui rounded-xl px-4 py-3 outline-none border border-dim focus:border-amber transition-colors placeholder:text-muted/40"
+            className="w-full bg-bg2 text-cream text-sm font-ui rounded-2xl px-4 py-3 outline-none border border-dim focus:border-amber transition-colors placeholder:text-muted/40"
           />
         </div>
 
