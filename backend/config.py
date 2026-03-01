@@ -14,8 +14,8 @@ load_dotenv()
 class Config:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
-    GOOGLE_CSE_API_KEY: str = os.getenv("GOOGLE_CSE_API_KEY", "")
     GOOGLE_CSE_CX: str = os.getenv("GOOGLE_CSE_CX", "")
+    SERPER_API_KEY: str = os.getenv("SERPER_API_KEY", "")
     
     DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() == "true"
     

@@ -138,7 +138,7 @@ async def scan_menu_async(image_path: str, restaurant_name: str = "") -> list[Di
         response = await loop.run_in_executor(
             None,
             lambda: client.models.generate_content(
-                model="gemini-2.0-flash-exp",
+                model="gemini-2.5-flash",
                 contents=[prompt, image],
                 config=types.GenerateContentConfig(
                     temperature=0.1,
@@ -169,7 +169,7 @@ async def scan_menu_tool(image_path: str, restaurant_name: str = "") -> dict:
 menu_scanner_agent = Agent(
     name="MenuScanner",
     description="Extracts structured dish data from restaurant menu images",
-    model="gemini-2.0-flash-exp",
+    model="gemini-2.5-flash",
     tools=[FunctionTool(scan_menu_tool)],
     instruction="You are a menu scanner that extracts dish information from images. Use the scan_menu_tool to process menu images.",
 )

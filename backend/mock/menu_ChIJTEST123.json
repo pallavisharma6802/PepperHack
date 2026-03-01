@@ -1,0 +1,16 @@
+{
+  "dishes": [
+    {
+      "id": "test_dish_1",
+      "name": "Test Burger",
+      "description": "A test burger",
+      "price": "$10.99",
+      "category": "Mains",
+      "photo_url": null,
+      "must_try": false,
+      "must_try_reason": null,
+      "macros": null,
+      "allergens": []
+    }
+  ]
+}

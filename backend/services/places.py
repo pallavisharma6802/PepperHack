@@ -250,7 +250,7 @@ async def get_restaurant_details(place_id: str) -> Optional[Restaurant]:
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": config.GOOGLE_API_KEY,
-        "X-Goog-FieldMask": "id,displayName,formattedAddress,location,rating,priceLevel,types,currentOpeningHours,photos"
+        "X-Goog-FieldMask": "id,displayName,formattedAddress,location,rating,priceLevel,types,currentOpeningHours,photos,websiteUri"
     }
     
     try:

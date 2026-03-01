@@ -185,27 +185,33 @@ async def get_restaurant(place_id: str):
 @app.get("/restaurants/{place_id}/menu")
 async def get_restaurant_menu_endpoint(place_id: str):
     """
-    Get pre-scraped menu for a restaurant from Google Maps/web scraping.
-    Falls back to cached/mock data if no menu available.
-    Returns dishes in same format as /analyze endpoint.
+    Get menu for a restaurant. Tries multiple sources:
+    1. Restaurant's own website (from Places API websiteUri)
+    2. Serper.dev web search → Yelp or other menu pages
+
+    Returns a list of dishes in the same format as /analyze.
     """
     try:
-        from backend.services.menu_scraper import get_restaurant_menu
-        
-        # Get restaurant name for context
+        from backend.services.scraper import get_menu_for_restaurant
+
+        # Get restaurant name for better search queries
         restaurant = await get_restaurant_details(place_id)
         restaurant_name = restaurant.name if restaurant else ""
-        
-        # Use the menu scraper service
-        menu_data = await get_restaurant_menu(place_id, restaurant_name)
-        
-        logger.info("menu_fetch_complete", 
-                   place_id=place_id,
-                   dish_count=len(menu_data.get("dishes", [])),
-                   source=menu_data.get("source"))
-        
-        return menu_data
-        
+
+        dishes = await get_menu_for_restaurant(place_id, restaurant_name)
+
+        logger.info("menu_fetch_complete",
+                    place_id=place_id,
+                    restaurant=restaurant_name,
+                    dish_count=len(dishes))
+
+        return {
+            "restaurant_id": place_id,
+            "restaurant_name": restaurant_name,
+            "dishes": [d.model_dump() for d in dishes],
+            "total": len(dishes),
+        }
+
     except Exception as e:
         logger.error("menu_fetch_failed", place_id=place_id, error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
