@@ -2,33 +2,42 @@
  * MenuScan - Camera + laser animation + agent status.
  * Person 3 owns this. Feeds results to P4's MenuDisplay when done.
  */
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { AgentStatusBar } from '../components/AgentStatusBar'
 import { useStore } from '../store'
 import { useAnalyzeStream } from '../hooks/useAnalyzeStream'
 
-// Mock dishes for when backend returns nothing (dev fallback)
-const MOCK_DISHES = [
-  { id: 'dish_1', name: 'Classic Burger', category: 'Mains', price: '$14', photo_url: null },
-  { id: 'dish_2', name: 'Caesar Salad', category: 'Starters', price: '$10', photo_url: null },
-  { id: 'dish_3', name: 'Fish & Chips', category: 'Mains', price: '$18', photo_url: null },
-]
-
 export function MenuScan({ restaurant, onDone, onBack }) {
-  const [scanPhase, setScanPhase] = useState('idle') // idle | scanning | processing | done
-  const [cameraError, setCameraError] = useState(null)
+  const [scanPhase, setScanPhase] = useState('idle') // idle | scanning | processing | done | error
+  const [errorMessage, setErrorMessage] = useState(null)
+  const [uploadMode, setUploadMode] = useState(false)
   const videoRef = useRef(null)
   const streamRef = useRef(null)
+  const canvasRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const { startAnalyze } = useAnalyzeStream()
   const { dishList, agentStatus, setDishList, setAgentStatus, resetScan } = useStore()
 
   const agentDoneCount = Object.values(agentStatus).filter((s) => s === 'done').length
   const dishCount = dishList.length
+  const allAgentsDone = agentDoneCount === 4
+
+  // Auto-transition to done/error when all agents complete
+  useEffect(() => {
+    if (scanPhase === 'processing' && allAgentsDone) {
+      if (dishList.length === 0) {
+        setErrorMessage('No menu items found. Please try a clearer photo.')
+        setScanPhase('error')
+      } else {
+        setScanPhase('done')
+      }
+    }
+  }, [scanPhase, allAgentsDone, dishList.length])
 
   const startCamera = useCallback(async () => {
-    setCameraError(null)
+    setErrorMessage(null)
     try {
       if (navigator.mediaDevices?.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -38,7 +47,7 @@ export function MenuScan({ restaurant, onDone, onBack }) {
         if (videoRef.current) videoRef.current.srcObject = stream
       }
     } catch (err) {
-      setCameraError('Camera access denied')
+      setErrorMessage('Camera access denied. Please use file upload instead.')
     }
   }, [])
 
@@ -50,32 +59,65 @@ export function MenuScan({ restaurant, onDone, onBack }) {
     if (videoRef.current) videoRef.current.srcObject = null
   }, [])
 
-  const startScan = async () => {
+  const captureImage = useCallback(() => {
+    if (!videoRef.current) return null
+    
+    const canvas = document.createElement('canvas')
+    canvas.width = videoRef.current.videoWidth
+    canvas.height = videoRef.current.videoHeight
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(videoRef.current, 0, 0)
+    
+    return canvas.toDataURL('image/jpeg', 0.8).split(',')[1] // Return base64 without prefix
+  }, [])
+
+  const handleFileUpload = useCallback((event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const base64 = e.target.result.split(',')[1]
+      await processScan(base64)
+    }
+    reader.readAsDataURL(file)
+  }, [])
+
+  const processScan = async (imageBase64) => {
     resetScan()
-    setScanPhase('scanning')
-    await startCamera()
+    setErrorMessage(null)
     setScanPhase('processing')
 
     try {
       await startAnalyze({
         restaurantId: restaurant.id,
-        imageBase64: null,
-        mock: false, // Use real menu scraping from websites
+        imageBase64: imageBase64,
+        mock: false, // Use real scanning now
       })
-      setScanPhase('done')
+      // State transition handled by useEffect watching allAgentsDone
     } catch (err) {
       console.error('Analyze failed:', err)
-      setDishList(MOCK_DISHES)
-      setAgentStatus({
-        scanner: 'done',
-        photo: 'done',
-        recommender: 'done',
-        nutritionist: 'done',
-      })
-      setScanPhase('done')
-    } finally {
-      stopCamera()
+      setErrorMessage('Failed to scan menu. Please try again or use a different image.')
+      setScanPhase('error')
     }
+  }
+
+  const startScan = async () => {
+    await startCamera()
+    setScanPhase('scanning')
+    
+    // Wait 2 seconds for camera to stabilize, then capture
+    setTimeout(async () => {
+      const imageBase64 = captureImage()
+      stopCamera()
+      
+      if (imageBase64) {
+        await processScan(imageBase64)
+      } else {
+        setErrorMessage('Failed to capture image. Please try again.')
+        setScanPhase('error')
+      }
+    }, 2000)
   }
 
   const handleDone = () => {
@@ -161,6 +203,16 @@ export function MenuScan({ restaurant, onDone, onBack }) {
           </div>
         )}
 
+        {scanPhase === 'error' && (
+          <div className="absolute inset-0 bg-bg/60 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-center px-4">
+              <div className="text-5xl mb-3 opacity-60">😅</div>
+              <p className="text-sm text-cream font-display font-semibold mb-1">Oopsie!</p>
+              <p className="text-xs text-muted font-ui">{errorMessage}</p>
+            </div>
+          </div>
+        )}
+
         {scanPhase === 'processing' && agentDoneCount === 0 && (
           <div className="absolute inset-0 bg-bg/60 flex items-center justify-center backdrop-blur-sm">
             <div className="text-center">
@@ -187,21 +239,48 @@ export function MenuScan({ restaurant, onDone, onBack }) {
 
       <div className="px-5 pb-8">
         {scanPhase === 'idle' ? (
-          <button
-            onClick={startScan}
-            className="w-full py-4 bg-amber text-black border-none rounded-2xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer"
-            style={{ animation: 'glow 2s ease-in-out infinite' }}
-          >
-            Start Scan
-          </button>
-        ) : scanPhase === 'done' ? (
+          <div className="space-y-3">
+            <button
+              onClick={startScan}
+              className="w-full py-4 bg-amber text-black border-none rounded-2xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer"
+              style={{ animation: 'glow 2s ease-in-out infinite' }}
+            >
+              📸 Scan with Camera
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-4 bg-transparent text-amber border-2 border-amber rounded-2xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer hover:bg-amber/10 transition-colors"
+            >
+              📁 Upload Menu Photo
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </div>
+        ) : scanPhase === 'done' && dishCount > 0 ? (
           <button
             onClick={handleDone}
             className="w-full py-4 bg-amber text-black border-none rounded-2xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer"
             style={{ animation: 'glow 2s ease-in-out infinite' }}
           >
-            View {dishCount || dishList.length} Dishes →
+            View {dishCount} Dishes →
           </button>
+        ) : scanPhase === 'error' ? (
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                setScanPhase('idle')
+                setErrorMessage(null)
+              }}
+              className="w-full py-4 bg-amber text-black border-none rounded-2xl font-ui font-bold text-sm tracking-wider uppercase cursor-pointer"
+            >
+              Try Again
+            </button>
+          </div>
         ) : (
           <div className="text-center py-4">
             <p className="text-xs text-muted font-ui tracking-wider">

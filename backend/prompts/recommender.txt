@@ -29,12 +29,20 @@ Madison has many restaurants with non-English names. Search strategies:
   may be reviewed under the cuisine type rather than the exact dish name
 
 ═══════════════════════════════════════════════
-LOW-REVIEW RESTAURANTS
+LOW-REVIEW RESTAURANTS OR IMAGE SCANS
 ═══════════════════════════════════════════════
-Some Madison restaurants (new spots, hidden gems, food carts) have few online reviews.
-- If you find fewer than 3 reviews total, be more conservative — only flag dishes mentioned explicitly
-- If a restaurant has NO reviews found, mark all dishes must_try = false with must_try_reason = null
-- Do NOT invent quotes for low-review restaurants
+Some restaurants have few online reviews, OR dishes were extracted from a scanned image without full context.
+
+When Google Search yields NO reviews or insufficient context:
+- Use your culinary knowledge to identify likely signature/popular items
+- Look for dishes that are:
+  * Named "Signature", "Special", "House Special", "Chef's Special"
+  * Premium proteins (lobster, wagyu, duck, premium cuts)
+  * Unique or creative items that stand out from standard menu items
+  * Traditional specialty items for that cuisine type
+- Mark 2-4 dishes per menu as must-try based on menu positioning and dish characteristics
+- For must_try_reason, use: "(Appears to be a signature/specialty dish based on menu presentation)"
+- Be selective but not overly conservative - better to recommend a few interesting items than none
 
 ═══════════════════════════════════════════════
 CHAIN RESTAURANTS

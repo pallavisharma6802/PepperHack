@@ -80,9 +80,6 @@ async def recommend_dishes_tool(dishes_json: list[dict], restaurant_name: str) -
     logger.info("recommendation_complete", recommended=recommended_count, total=len(dishes_json))
     
     return {"dishes": dishes_json, "recommended_count": recommended_count}
-    logger.info("recommendation_complete", recommended=recommended_count, total=len(dishes_json))
-
-    return {"dishes": dishes_json, "recommended_count": recommended_count}
 
 
 def _process_chunk(chunk: list[dict], restaurant_name: str) -> None:
@@ -101,29 +98,49 @@ def _process_chunk(chunk: list[dict], restaurant_name: str) -> None:
     )
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[_SYSTEM_PROMPT, prompt],
-            config=types.GenerateContentConfig(
-                tools=[_SEARCH_TOOL],
-                temperature=0.1,
-                max_output_tokens=8192,
-                # NOTE: response_mime_type cannot be used with google_search tool
-            ),
-        )
+        logger.info("recommender_calling_gemini", chunk_size=len(chunk), restaurant=restaurant_name)
+        
+        # Try with Google Search first
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[_SYSTEM_PROMPT, prompt],
+                config=types.GenerateContentConfig(
+                    tools=[_SEARCH_TOOL],
+                    temperature=0.1,
+                    max_output_tokens=8192,
+                ),
+            )
+            logger.info("recommender_gemini_response_received", response_length=len(response.text) if response.text else 0, with_search=True)
+        except Exception as search_error:
+            # Fallback: try without Google Search if it fails
+            logger.warning("recommender_search_failed_fallback", error=str(search_error))
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[_SYSTEM_PROMPT, prompt],
+                config=types.GenerateContentConfig(
+                    temperature=0.3,
+                    max_output_tokens=8192,
+                    response_mime_type="application/json",
+                ),
+            )
+            logger.info("recommender_gemini_response_received", response_length=len(response.text) if response.text else 0, with_search=False)
+        
         _apply_to_chunk(chunk, response.text.strip())
 
     except Exception as e:
-        logger.error("recommendation_chunk_failed", error=str(e))
+        logger.error("recommendation_chunk_failed", error=str(e), exc_info=True)
 
 
 def _apply_to_chunk(chunk: list[dict], raw: str) -> None:
     """Parse JSON response and apply must_try / must_try_reason in-place."""
     try:
+        logger.info("recommender_parsing_response", raw_preview=raw[:200] if raw else "empty")
+        
         start = raw.find("{")
         end   = raw.rfind("}") + 1
         if start == -1 or end == 0:
-            logger.warning("recommender_no_json_found")
+            logger.warning("recommender_no_json_found", raw_preview=raw[:200])
             return
 
         json_str = raw[start:end]
@@ -139,6 +156,9 @@ def _apply_to_chunk(chunk: list[dict], raw: str) -> None:
                 .replace("\u201c", '"').replace("\u201d", '"')   # " "
             )
             data = json.loads(json_str)
+        
+        logger.info("recommender_parsed_json", dish_count=len(data.get("dishes", [])))
+        
         recs: dict[str, dict] = {
             item["id"]: item for item in data.get("dishes", [])
         }
@@ -148,6 +168,7 @@ def _apply_to_chunk(chunk: list[dict], raw: str) -> None:
             if rec:
                 must_try = bool(rec.get("must_try", False))
                 reason   = rec.get("must_try_reason") or None
+                logger.info("recommender_applying", dish_id=dish_data.get("id"), dish_name=dish_data.get("name"), must_try=must_try, has_reason=reason is not None)
                 # If flagged must-try but no real quote found, use a funny fallback
                 if must_try and reason is None:
                     reason = random.choice(_FUNNY_FALLBACKS)
@@ -155,7 +176,7 @@ def _apply_to_chunk(chunk: list[dict], raw: str) -> None:
                 dish_data["must_try_reason"] = reason
 
     except (json.JSONDecodeError, KeyError, TypeError) as e:
-        logger.error("recommender_parse_failed", error=str(e))
+        logger.error("recommender_parse_failed", error=str(e), exc_info=True)
 
 
 recommendation_agent = Agent(

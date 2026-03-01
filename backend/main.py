@@ -248,25 +248,30 @@ async def get_restaurant_menu_endpoint(place_id: str):
                     restaurant=restaurant_name,
                     dish_count=len(dishes))
 
+        # Enrich dishes with photos + recommender + nutrition/allergens concurrently
+        from backend.agents.photos import find_photos_tool
+        from backend.agents.recommender import recommend_dishes_tool
+        from backend.agents.nutrition import analyze_nutrition_tool
         dishes_dicts = [d.model_dump() for d in dishes]
-        result = {
+        await asyncio.gather(
+            find_photos_tool(dishes_dicts, restaurant_name, place_id),
+            recommend_dishes_tool(dishes_dicts, restaurant_name),
+            analyze_nutrition_tool(dishes_dicts),
+        )
+
+        logger.info("menu_enrichment_complete",
+                    place_id=place_id,
+                    photos=sum(1 for d in dishes_dicts if d.get("photo_url")),
+                    must_try=sum(1 for d in dishes_dicts if d.get("must_try")),
+                    with_allergens=sum(1 for d in dishes_dicts if d.get("allergens")),
+                    with_macros=sum(1 for d in dishes_dicts if d.get("macros")))
+
+        return {
             "restaurant_id": place_id,
             "restaurant_name": restaurant_name,
             "dishes": dishes_dicts,
             "total": len(dishes_dicts),
         }
-
-        # Cache basic result NOW so any concurrent/repeat requests are instant
-        _menu_cache[place_id] = result
-
-        # Kick off enrichment in background — updates cache in-place when done
-        if place_id not in _enriching:
-            asyncio.create_task(
-                _enrich_and_cache(place_id, restaurant_name, dishes_dicts, result)
-            )
-
-        # Return the basic dishes immediately (enrichment adds photos/nutrition later)
-        return result
 
     except Exception as e:
         logger.error("menu_fetch_failed", place_id=place_id, error=str(e), exc_info=True)
@@ -298,7 +303,8 @@ async def stream_analyze_results_agentic(
             logger.info("client_disconnected_early", restaurant_id=restaurant_id)
             return
         
-        yield f"data: {SSEEvent(agent='system', status=AgentState.RUNNING, payload={{'message': 'Starting agentic workflow'}}).model_dump_json()}\n\n"
+        system_payload = {'message': 'Starting agentic workflow'}
+        yield f"data: {SSEEvent(agent='system', status=AgentState.RUNNING, payload=system_payload).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
         # AGENT 1: Scanner - Extract dishes from menu
@@ -317,14 +323,16 @@ async def stream_analyze_results_agentic(
         
         if not dishes:
             logger.warning("no_dishes_found", restaurant_id=restaurant_id)
-            yield f"data: {SSEEvent(agent='scanner', status=AgentState.ERROR, payload={{'error': 'No dishes extracted from menu'}}).model_dump_json()}\n\n"
+            error_payload = {'error': 'No dishes extracted from menu'}
+            yield f"data: {SSEEvent(agent='scanner', status=AgentState.ERROR, payload=error_payload).model_dump_json()}\n\n"
             yield "data: [DONE]\n\n"
             return
         
         logger.info("scanner_complete", count=len(dishes))
         
         # Stream scanner results immediately
-        yield f"data: {SSEEvent(agent='scanner', status=AgentState.DONE, payload={{'dishes': [d.model_dump() for d in dishes]}}).model_dump_json()}\n\n"
+        scanner_payload = {'dishes': [d.model_dump() for d in dishes]}
+        yield f"data: {SSEEvent(agent='scanner', status=AgentState.DONE, payload=scanner_payload).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
         # Check disconnect
@@ -349,7 +357,8 @@ async def stream_analyze_results_agentic(
         logger.info("photo_finder_complete", found=photo_result.get("photos_found", 0))
         
         # Stream photo results immediately
-        yield f"data: {SSEEvent(agent='photo', status=AgentState.DONE, payload={{'dishes': [d.model_dump() for d in dishes]}}).model_dump_json()}\n\n"
+        photo_payload = {'dishes': [d.model_dump() for d in dishes]}
+        yield f"data: {SSEEvent(agent='photo', status=AgentState.DONE, payload=photo_payload).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
         # Check disconnect
@@ -375,7 +384,8 @@ async def stream_analyze_results_agentic(
         logger.info("recommender_complete", recommended=rec_result.get("recommended_count", 0))
         
         # Stream recommender results immediately
-        yield f"data: {SSEEvent(agent='recommender', status=AgentState.DONE, payload={{'dishes': [d.model_dump() for d in dishes]}}).model_dump_json()}\n\n"
+        recommender_payload = {'dishes': [d.model_dump() for d in dishes]}
+        yield f"data: {SSEEvent(agent='recommender', status=AgentState.DONE, payload=recommender_payload).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
         # Check disconnect
@@ -393,28 +403,35 @@ async def stream_analyze_results_agentic(
         nutrition_result = await analyze_nutrition_tool(dishes_json)
         
         # Update dishes with nutrition data
-        for i, dish_data in enumerate(nutrition_result.get("dishes", [])):
-            if i < len(dishes):
-                if "macros" in dish_data and dish_data["macros"]:
-                    dishes[i].macros = dish_data["macros"]
-                if "allergens" in dish_data:
-                    dishes[i].allergens = dish_data["allergens"]
+        nutrition_dishes = nutrition_result.get("dishes", [])
+        for i in range(min(len(dishes), len(nutrition_dishes))):
+            dish_data = nutrition_dishes[i]
+            if "macros" in dish_data and dish_data["macros"]:
+                from backend.schema import Macros
+                dishes[i].macros = Macros(**dish_data["macros"])
+            if "allergens" in dish_data:
+                dishes[i].allergens = dish_data["allergens"]
+            if "ingredients" in dish_data:
+                dishes[i].ingredients = dish_data["ingredients"]
         
         logger.info("nutritionist_complete", analyzed=nutrition_result.get("analyzed_count", 0))
         
         # Stream nutritionist results immediately
-        yield f"data: {SSEEvent(agent='nutritionist', status=AgentState.DONE, payload={{'dishes': [d.model_dump() for d in dishes]}}).model_dump_json()}\n\n"
+        nutritionist_payload = {'dishes': [d.model_dump() for d in dishes]}
+        yield f"data: {SSEEvent(agent='nutritionist', status=AgentState.DONE, payload=nutritionist_payload).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
         # Final complete event with all enriched dishes
         final_dishes = [d.model_dump() for d in dishes]
-        yield f"data: {SSEEvent(agent='complete', status=AgentState.DONE, payload={{'dishes': final_dishes}}).model_dump_json()}\n\n"
+        complete_payload = {'dishes': final_dishes}
+        yield f"data: {SSEEvent(agent='complete', status=AgentState.DONE, payload=complete_payload).model_dump_json()}\n\n"
         
         logger.info("agentic_analysis_complete", dish_count=len(dishes))
         
     except Exception as e:
         logger.error("agentic_analysis_failed", error=str(e), exc_info=True)
-        yield f"data: {SSEEvent(agent='error', status=AgentState.ERROR, payload={{'error': str(e)}}).model_dump_json()}\n\n"
+        error_payload = {'error': str(e)}
+        yield f"data: {SSEEvent(agent='error', status=AgentState.ERROR, payload=error_payload).model_dump_json()}\n\n"
     
     finally:
         # CRITICAL FIX: Clean up temp file after streaming completes
