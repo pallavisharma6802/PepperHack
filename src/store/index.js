@@ -25,6 +25,9 @@ export const useStore = create((set) => ({
   dishList: [],
   activeDishes: [],
 
+  // Active dish for DishCard overlay - P4 needs this
+  activeDishId: null,
+
   // Agent status - P3 updates from SSE, P4 uses for sounds
   agentStatus: INITIAL_AGENT_STATUS,
 
@@ -40,6 +43,11 @@ export const useStore = create((set) => ({
 
   setDishList: (dishes) => set({ dishList: dishes }),
   setActiveDishes: (dishes) => set({ activeDishes: dishes }),
+
+  // P4 DishCard methods
+  setActiveDishId: (dishId) => set({ activeDishId: dishId }),
+  openDish: (dishId) => set({ activeDishId: dishId }),
+  closeDish: () => set({ activeDishId: null }),
 
   setAgentStatus: (status) => set((state) => ({
     agentStatus: { ...state.agentStatus, ...status },
@@ -68,6 +76,7 @@ export const useStore = create((set) => ({
   resetScan: () => set({
     dishList: [],
     activeDishes: [],
+    activeDishId: null,
     agentStatus: INITIAL_AGENT_STATUS,
   }),
 }))

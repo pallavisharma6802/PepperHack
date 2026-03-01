@@ -20,18 +20,17 @@ import os
 from pathlib import Path
 
 import httpx
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from backend.config import config as _cfg
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
-load_dotenv(Path(__file__).parent.parent / ".env")
-
-GOOGLE_API_KEY   = os.environ.get("GOOGLE_API_KEY", "")
-GEMINI_API_KEY   = os.environ.get("GEMINI_API_KEY", "")
+GOOGLE_API_KEY   = _cfg.GOOGLE_API_KEY
+GEMINI_API_KEY   = _cfg.GEMINI_API_KEY
+SERPER_API_KEY   = _cfg.SERPER_API_KEY
 SPOONACULAR_KEY  = os.environ.get("SPOONACULAR_KEY", "")
 UNSPLASH_KEY     = os.environ.get("UNSPLASH_KEY", "")
 
@@ -39,6 +38,7 @@ PLACES_DETAILS_URL  = "https://maps.googleapis.com/maps/api/place/details/json"
 PLACES_PHOTO_URL    = "https://maps.googleapis.com/maps/api/place/photo"
 SPOONACULAR_URL     = "https://api.spoonacular.com/recipes/complexSearch"
 UNSPLASH_URL        = "https://api.unsplash.com/search/photos"
+SERPER_IMAGES_URL   = "https://google.serper.dev/images"
 
 # A real hosted image so the UI always shows something, even in the worst case
 PLACEHOLDER = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80"
@@ -241,6 +241,42 @@ async def fetch_unsplash_image(concept: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# SOURCE 0 — Serper Image Search (dish-specific, uses working API key)
+# ---------------------------------------------------------------------------
+
+async def fetch_serper_image(dish_name: str) -> str | None:
+    """
+    Search Google Images via Serper for a dish-specific food photo.
+    Returns the first image URL found, or None on failure.
+    """
+    if not SERPER_API_KEY:
+        print(f"[photos] Serper skipped for '{dish_name}': SERPER_API_KEY MISSING")
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                SERPER_IMAGES_URL,
+                headers={"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"},
+                json={"q": f"{dish_name} food", "num": 3},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        images = data.get("images", [])
+        # Pick first image that looks like a real photo URL
+        for img in images:
+            url = img.get("imageUrl") or img.get("link") or ""
+            if url.startswith("http") and any(ext in url.lower() for ext in (".jpg", ".jpeg", ".png", ".webp")):
+                return url
+        # Fall back to first result even without known extension
+        if images:
+            return images[0].get("imageUrl") or images[0].get("link")
+        return None
+    except Exception as e:
+        print(f"[photos] fetch_serper_image failed for '{dish_name}': {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
 # MAIN — get_dish_photo
 # ---------------------------------------------------------------------------
 
@@ -271,19 +307,16 @@ async def get_dish_photo(
     source_used = "placeholder"
     result_url  = PLACEHOLDER
 
-    # --- Source 1: Google Places + Gemini Vision ---
+    # --- Source 0: Serper Image Search (dish-specific, best quality) ---
     try:
-        if place_id and GOOGLE_API_KEY:
-            photo_urls = await fetch_place_photos(place_id)
-            if photo_urls:
-                picked = await gemini_pick_best_photo(dish_name, photo_urls)
-                if picked:
-                    result_url  = picked
-                    source_used = "places+gemini"
+        url = await fetch_serper_image(concept)
+        if url:
+            result_url  = url
+            source_used = "serper"
     except Exception as e:
-        print(f"[photos] Source 1 error for '{dish_name}': {e}")
+        print(f"[photos] Source 0 error for '{dish_name}': {e}")
 
-    # --- Source 2: Spoonacular ---
+    # --- Source 1: Spoonacular ---
     if result_url == PLACEHOLDER:
         try:
             url = await fetch_spoonacular_image(concept)
@@ -291,9 +324,9 @@ async def get_dish_photo(
                 result_url  = url
                 source_used = "spoonacular"
         except Exception as e:
-            print(f"[photos] Source 2 error for '{dish_name}': {e}")
+            print(f"[photos] Source 1 error for '{dish_name}': {e}")
 
-    # --- Source 3: Unsplash ---
+    # --- Source 2: Unsplash ---
     if result_url == PLACEHOLDER:
         try:
             url = await fetch_unsplash_image(concept)
@@ -301,7 +334,7 @@ async def get_dish_photo(
                 result_url  = url
                 source_used = "unsplash"
         except Exception as e:
-            print(f"[photos] Source 3 error for '{dish_name}': {e}")
+            print(f"[photos] Source 2 error for '{dish_name}': {e}")
 
     print(f'[photos] "{dish_name}" → "{concept}" → {source_used}')
 

@@ -2,14 +2,74 @@
  * RestaurantDetail - Hero image, ratings, Scan Menu / Browse Dishes tabs.
  * Person 3 owns this.
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
+import { useStore } from '../store'
+
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 export function RestaurantDetail({ restaurant, onScan, onBack }) {
+  const navigate = useNavigate()
   const [tab, setTab] = useState('scan')
   const [heroLoaded, setHeroLoaded] = useState(false)
+  const [loadingMenu, setLoadingMenu] = useState(false)
+  const [menuLoaded, setMenuLoaded] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  
+  const { dishList, setDishList } = useStore()
 
   const photo = restaurant.photo_url || restaurant.photo
+
+  // Auto-load menu when switching to Browse Dishes tab
+  useEffect(() => {
+    if (tab === 'browse' && !menuLoaded && !loadingMenu && dishList.length === 0) {
+      loadMenu()
+    }
+  }, [tab, menuLoaded, loadingMenu])
+
+  const loadMenu = async () => {
+    setLoadingMenu(true)
+    setLoadError(false)
+    try {
+      console.log('Loading menu for restaurant:', restaurant.id)
+      
+      // Set a timeout for menu scraping (45 seconds)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000)
+      
+      const response = await fetch(`${API_BASE}/restaurants/${restaurant.id}/menu`, {
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('Menu loaded:', data)
+      
+      if (data.dishes && data.dishes.length > 0) {
+        setDishList(data.dishes)
+        setMenuLoaded(true)
+      } else {
+        console.warn('No dishes in response')
+        setLoadError(true)
+      }
+    } catch (error) {
+      console.error('Failed to load menu:', error)
+      setLoadError(true)
+      setMenuLoaded(false)
+    } finally {
+      setLoadingMenu(false)
+    }
+  }
+
+  const handleViewDishes = () => {
+    navigate('/dishes')
+  }
 
   return (
     <div className="w-full h-full bg-bg flex flex-col overflow-hidden">
@@ -106,18 +166,64 @@ export function RestaurantDetail({ restaurant, onScan, onBack }) {
           </>
         ) : (
           <>
-            <div className="text-5xl">🍽</div>
-            <p className="font-display font-semibold text-xl text-cream text-center">
-              Menu loaded from
-              <br />
-              Google Maps
-            </p>
-            <button
-              onClick={onScan}
-              className="bg-surface text-cream border border-dim font-ui font-semibold text-sm px-7 py-3 rounded-full cursor-pointer"
-            >
-              View All Dishes →
-            </button>
+            {loadingMenu ? (
+              <>
+                <p className="font-display text-lg text-cream text-center">
+                  Loading menu from website...
+                </p>
+                <p className="text-xs text-muted text-center">
+                  This may take 30-60 seconds
+                </p>
+              </>
+            ) : loadError ? (
+              <>
+                <div className="text-5xl">⚠️</div>
+                <p className="font-display font-semibold text-xl text-cream text-center">
+                  Couldn't load menu
+                </p>
+                <p className="text-sm text-muted text-center mb-3">
+                  Try scanning with your camera instead
+                </p>
+                <button
+                  onClick={onScan}
+                  className="bg-amber text-black border-none font-ui font-bold text-sm tracking-wider uppercase px-10 py-4 rounded-full cursor-pointer"
+                >
+                  Open Camera
+                </button>
+              </>
+            ) : menuLoaded && dishList.length > 0 ? (
+              <>
+                <div className="text-5xl">🍽</div>
+                <p className="font-display font-semibold text-xl text-cream text-center">
+                  {dishList.length} dishes found
+                </p>
+                <button
+                  onClick={handleViewDishes}
+                  className="bg-amber text-black border-none font-ui font-bold text-sm tracking-wider uppercase px-10 py-4 rounded-full cursor-pointer"
+                >
+                  View All Dishes →
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-5xl">🍽</div>
+                <p className="font-display font-semibold text-xl text-cream text-center">
+                  Ready to browse menu
+                </p>
+                <button
+                  onClick={loadMenu}
+                  className="bg-amber text-black border-none font-ui font-bold text-sm tracking-wider uppercase px-10 py-4 rounded-full cursor-pointer"
+                >
+                  Load Menu
+                </button>
+                <button
+                  onClick={onScan}
+                  className="bg-surface text-cream border border-dim font-ui font-semibold text-sm px-7 py-3 rounded-full cursor-pointer"
+                >
+                  Open Camera →
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

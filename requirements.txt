@@ -1,0 +1,24 @@
+# MadisonBites Backend Dependencies
+# Python 3.9+
+
+# Core Framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.34.0
+python-dotenv>=1.0.0
+
+# Google AI & ADK
+google-genai>=1.0.0
+google-adk>=1.18.0
+
+# Data Validation
+pydantic>=2.8.0
+
+# Image Processing
+pillow>=10.0.0
+
+# HTTP Requests
+aiohttp>=3.9.0
+requests>=2.32.0
+
+# Utilities
+python-multipart>=0.0.12

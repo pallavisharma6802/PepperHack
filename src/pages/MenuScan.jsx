@@ -60,7 +60,7 @@ export function MenuScan({ restaurant, onDone, onBack }) {
       await startAnalyze({
         restaurantId: restaurant.id,
         imageBase64: null,
-        mock: true, // Use backend cached menu; set false + pass imageBase64 for real scan
+        mock: false, // Use real menu scraping from websites
       })
       setScanPhase('done')
     } catch (err) {

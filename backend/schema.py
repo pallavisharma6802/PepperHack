@@ -105,6 +105,7 @@ class Dish(BaseModel):
     # Nutritionist fills these
     macros:          Optional[Macros]      = Field(default=None, description="Macro estimates; null until NutritionAgent completes")
     allergens:       List[AllergenTag]     = Field(default_factory=list, description="List of allergens present in the dish")
+    ingredients:     List[str]             = Field(default_factory=list, description="Key ingredients inferred by NutritionAgent")
 
 
 # ---------------------------------------------------------------------------

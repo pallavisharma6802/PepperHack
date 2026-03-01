@@ -15,7 +15,7 @@ import time
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -136,7 +136,7 @@ async def get_restaurants(
     lat: float = config.MADISON_LAT,
     lng: float = config.MADISON_LNG,
     radius: int = config.DEFAULT_SEARCH_RADIUS,
-    cuisine: str | None = None,
+    cuisine: Optional[str] = None,
     open_now: bool = False,
 ):
     """
@@ -205,11 +205,26 @@ async def get_restaurant_menu_endpoint(place_id: str):
                     restaurant=restaurant_name,
                     dish_count=len(dishes))
 
+        # Enrich dishes with photos + nutrition/allergens concurrently
+        from backend.agents.photos import find_photos_tool
+        from backend.agents.nutrition import analyze_nutrition_tool
+        dishes_dicts = [d.model_dump() for d in dishes]
+        await asyncio.gather(
+            find_photos_tool(dishes_dicts, restaurant_name, place_id),
+            analyze_nutrition_tool(dishes_dicts),
+        )
+
+        logger.info("menu_enrichment_complete",
+                    place_id=place_id,
+                    photos=sum(1 for d in dishes_dicts if d.get("photo_url")),
+                    with_allergens=sum(1 for d in dishes_dicts if d.get("allergens")),
+                    with_macros=sum(1 for d in dishes_dicts if d.get("macros")))
+
         return {
             "restaurant_id": place_id,
             "restaurant_name": restaurant_name,
-            "dishes": [d.model_dump() for d in dishes],
-            "total": len(dishes),
+            "dishes": dishes_dicts,
+            "total": len(dishes_dicts),
         }
 
     except Exception as e:
@@ -219,7 +234,7 @@ async def get_restaurant_menu_endpoint(place_id: str):
 
 async def stream_analyze_results_agentic(
     restaurant_id: str,
-    image_path: str | None,
+    image_path: Optional[str],
     restaurant_name: str,
     request: Request,
 ) -> AsyncGenerator[str, None]:
@@ -257,7 +272,7 @@ async def stream_analyze_results_agentic(
         # Import scanner here to avoid circular imports
         from backend.agents.scanner import scan_menu_async
         
-        dishes: list[Dish] = await scan_menu_async(image_path, restaurant_name)
+        dishes: list[Dish] = await scan_menu_async(image_path, restaurant_name, restaurant_id)
         
         if not dishes:
             logger.warning("no_dishes_found", restaurant_id=restaurant_id)

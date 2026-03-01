@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from PIL import Image
 import google.genai as genai
@@ -115,17 +115,33 @@ def _parse_gemini_response(response: Any, restaurant_name: str) -> list[Dish]:
     return dishes
 
 
-async def scan_menu_async(image_path: str, restaurant_name: str = "") -> list[Dish]:
+async def scan_menu_async(image_path: Optional[str], restaurant_name: str = "", restaurant_id: str = "") -> list[Dish]:
     """
     Asynchronously scan menu image and extract dishes using Gemini Vision.
+    If no image provided, falls back to web scraping.
     """
     if not config.GEMINI_API_KEY:
         logger.error("gemini_api_key_missing")
         return []
     
-    if not os.path.exists(image_path):
-        logger.error("image_not_found", path=image_path)
-        return []
+    # If no image provided, use web scraping instead
+    if not image_path or not os.path.exists(image_path):
+        logger.info("no_image_provided_using_scraper", restaurant=restaurant_name, place_id=restaurant_id)
+        
+        # Import scraper to get menu from website
+        from backend.services.scraper import get_menu_for_restaurant
+        
+        if restaurant_id:
+            try:
+                dishes = await get_menu_for_restaurant(restaurant_id, restaurant_name)
+                logger.info("menu_scraped_successfully", dish_count=len(dishes))
+                return dishes
+            except Exception as e:
+                logger.error("menu_scraping_failed", error=str(e))
+                return []
+        else:
+            logger.error("no_image_and_no_restaurant_id")
+            return []
     
     try:
         logger.info("scanning_menu", image=image_path, restaurant=restaurant_name)

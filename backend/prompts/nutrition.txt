@@ -104,7 +104,8 @@ Return ONLY raw JSON — no markdown, no code fences, no explanation before or a
       "carbs_g": 72,
       "fat_g": 24,
       "confidence": "high",
-      "allergens": ["Gluten", "Dairy"]
+      "allergens": ["Gluten", "Dairy"],
+      "ingredients": ["romaine lettuce", "parmesan", "croutons", "caesar dressing", "lemon"]
     }
   ]
 }
@@ -113,3 +114,4 @@ Every dish from the input MUST appear in the output.
 All macro values must be non-negative integers.
 confidence must be exactly "high", "medium", or "low".
 allergens must only contain values from the allowed list above.
+ingredients should be 4-10 short ingredient names (plain English, lowercase, no quantities).

@@ -135,6 +135,11 @@ def _apply_to_chunk(chunk: list[dict], raw: str) -> None:
                 if a in _VALID_ALLERGENS
             ]
 
+            # Ingredients list
+            dish_data["ingredients"] = [
+                str(i) for i in res.get("ingredients", []) if i
+            ][:12]  # cap at 12 to keep UI clean
+
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
         logger.error("nutrition_parse_failed", error=str(e))
 

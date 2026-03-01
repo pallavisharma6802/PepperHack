@@ -4,7 +4,7 @@ import asyncio
 import json
 import os
 import re
-from typing import Any
+from typing import Any, Optional, List
 
 import httpx
 import google.genai as genai
@@ -29,7 +29,7 @@ SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 
-async def get_menu_url_from_places(place_id: str) -> str | None:
+async def get_menu_url_from_places(place_id: str) -> Optional[str]:
     """
     Calls Places API (New) to get the restaurant's website.
     Returns websiteUri string or None if not found.
@@ -92,7 +92,7 @@ def _clean_html(html_content: str) -> str:
     return text
 
 
-def _parse_gemini_menu_response(response_text: str, restaurant_name: str) -> list[Dish]:
+def _parse_gemini_menu_response(response_text: str, restaurant_name: str) -> List[Dish]:
     """
     Parse Gemini JSON response into list of Dish objects.
     """
@@ -153,7 +153,7 @@ def _parse_gemini_menu_response(response_text: str, restaurant_name: str) -> lis
 async def scrape_menu_from_website(
     website_url: str,
     restaurant_name: str
-) -> list[Dish]:
+) -> List[Dish]:
     """
     Scrape menu from restaurant website using Gemini.
     Returns list of Dish objects, empty list on any failure.
@@ -242,7 +242,7 @@ Website text:
         return []
 
 
-async def find_menu_url_via_serper(restaurant_name: str) -> list[str]:
+async def find_menu_url_via_serper(restaurant_name: str) -> List[str]:
     """
     Use Serper.dev to find menu URLs for a restaurant.
     Prioritizes Yelp pages, then falls back to other results.
@@ -277,8 +277,8 @@ async def find_menu_url_via_serper(restaurant_name: str) -> list[str]:
             data = response.json()
             organic = data.get("organic", [])
 
-        yelp_urls: list[str] = []
-        other_urls: list[str] = []
+        yelp_urls: List[str] = []
+        other_urls: List[str] = []
 
         for result in organic:
             link = result.get("link", "")
@@ -305,7 +305,7 @@ async def find_menu_url_via_serper(restaurant_name: str) -> list[str]:
 async def get_menu_for_restaurant(
     place_id: str,
     restaurant_name: str
-) -> list[Dish]:
+) -> List[Dish]:
     """
     Main entry point. Cascades through multiple sources:
     1. Restaurant's own website via Places API websiteUri
