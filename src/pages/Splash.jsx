@@ -20,12 +20,12 @@ export function Splash({ onDone }) {
   return (
     <div className="relative w-full h-full bg-bg flex flex-col overflow-hidden">
 
-      {/* Top label — pinned with generous safe-area padding */}
+      {/* Top label */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={ready ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.5, ease }}
-        className="px-6 pt-16 pb-0"
+        className="px-8 pt-20 text-center"
       >
         <span
           className="text-[11px] font-ui font-semibold tracking-[0.22em] uppercase"
@@ -35,13 +35,13 @@ export function Splash({ onDone }) {
         </span>
       </motion.div>
 
-      {/* Hero headline — centered in remaining top half */}
-      <div className="flex-1 flex flex-col justify-center px-6">
+      {/* Hero headline */}
+      <div className="flex flex-col items-center px-8 text-center mt-16">
         <motion.h1
           initial={{ opacity: 0, y: 24 }}
           animate={ready ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.08, ease }}
-          className="font-display font-bold text-cream leading-none mb-5"
+          className="font-display font-bold text-cream leading-none mb-8"
           style={{ fontSize: 56, letterSpacing: '-0.01em' }}
         >
           Madison
@@ -54,23 +54,24 @@ export function Splash({ onDone }) {
           animate={ready ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.55, delay: 0.18, ease }}
           className="font-ui text-muted text-[16px] leading-relaxed"
-          style={{ fontWeight: 400, maxWidth: 240 }}
+          style={{ fontWeight: 400, maxWidth: 280 }}
         >
           Every menu. Every dish.
           <br />AI-powered for Madison.
         </motion.p>
       </div>
 
-      {/* Bottom section — search + tags + CTA */}
-      <div className="px-6 pb-10">
+      {/* Spacer */}
+      <div className="flex-1"></div>
 
-        {/* Search bar mock */}
+      {/* Search bar */}
+      <div className="px-8 mb-10">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={ready ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.26, ease }}
           onClick={onDone}
-          className="flex items-center gap-3 bg-surface rounded-3xl px-4 py-3.5 mb-5 cursor-pointer"
+          className="flex items-center gap-3 bg-surface rounded-3xl px-5 py-4 cursor-pointer"
           style={{ border: '1px solid #E4DFD6', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}
         >
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="#8A7E6E">
@@ -78,50 +79,29 @@ export function Splash({ onDone }) {
           </svg>
           <span className="font-ui text-[14px]" style={{ color: '#B0A898' }}>Find a restaurant or dish…</span>
         </motion.div>
+      </div>
 
-        {/* Pill tags */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={ready ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.34, ease }}
-          className="flex gap-2 mb-8"
-        >
-          {['Italian', 'Sushi', 'Burgers', 'Vegan'].map((tag, i) => (
-            <span
-              key={tag}
-              onClick={onDone}
-              className="font-ui text-[12px] font-medium px-3 py-1.5 rounded-full cursor-pointer transition-colors"
-              style={{
-                background: i === 0 ? '#1A1714' : '#FFFFFF',
-                color: i === 0 ? '#FFFFFF' : '#1A1714',
-                border: '1px solid #E4DFD6',
-              }}
-            >
-              {tag}
-            </span>
-          ))}
-        </motion.div>
-
-        {/* CTA */}
+      {/* Footer with CTA button */}
+      <div className="px-8 pb-12">
         {showCTA && (
           <motion.button
             onClick={onDone}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease }}
-            className="w-full font-ui font-semibold text-[15px] py-4 rounded-3xl cursor-pointer border-none mb-6"
+            className="w-full font-ui font-semibold text-[15px] py-5 rounded-3xl cursor-pointer border-none mb-12"
             style={{ background: '#1A1714', color: '#FFFFFF', letterSpacing: '-0.01em' }}
           >
             Browse Restaurants
           </motion.button>
         )}
 
-        {/* Bottom micro-label */}
+        {/* Footer labels */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={showCTA ? { opacity: 1 } : {}}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex justify-center gap-6"
+          className="flex justify-center gap-8"
         >
           {['AI-powered', 'Madison, WI', 'CheeseHacks'].map((t) => (
             <span key={t} className="text-[10px] font-ui text-muted/50 tracking-wide">{t}</span>

@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 
 PLACES_NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
 PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
-NEARBY_MAX_PER_REQUEST = 20
+NEARBY_MAX_PER_REQUEST = 20  # Google Places API hard limit
 TEXT_SEARCH_PAGE_SIZE = 20
 
 
@@ -158,13 +158,15 @@ async def search_restaurants(
             all_places.append(p)
 
     async def _nearby_batch(center_lat: float, center_lng: float) -> list:
+        # Ensure radius doesn't exceed API limit of 50000 meters
+        search_radius = min(int(radius * 0.55), 50000)
         payload = {
             "includedTypes": ["restaurant"],
             "maxResultCount": NEARBY_MAX_PER_REQUEST,
             "locationRestriction": {
                 "circle": {
                     "center": {"latitude": center_lat, "longitude": center_lng},
-                    "radius": int(radius * 0.55)
+                    "radius": search_radius
                 }
             }
         }

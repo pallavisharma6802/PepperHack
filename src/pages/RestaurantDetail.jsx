@@ -17,9 +17,17 @@ export function RestaurantDetail({ restaurant, onScan, onBack }) {
   const [menuLoaded, setMenuLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
   
-  const { dishList, setDishList } = useStore()
+  const { dishList, setDishList, addToHistory, wishlist, toggleWishlist } = useStore()
 
   const photo = restaurant.photo_url || restaurant.photo
+  const isInWishlist = wishlist.some((r) => r.id === restaurant.id)
+
+  // Add to history when viewing restaurant
+  useEffect(() => {
+    if (restaurant) {
+      addToHistory(restaurant)
+    }
+  }, [restaurant.id])
 
   // Auto-load menu when switching to Browse Dishes tab
   useEffect(() => {
@@ -96,6 +104,14 @@ export function RestaurantDetail({ restaurant, onScan, onBack }) {
           className="absolute top-12 left-4 w-10 h-10 rounded-full bg-bg/60 border border-dim text-cream text-lg cursor-pointer backdrop-blur flex items-center justify-center"
         >
           ‹
+        </button>
+        <button
+          onClick={() => toggleWishlist(restaurant)}
+          className="absolute top-12 right-4 w-10 h-10 rounded-full bg-bg/60 border border-dim cursor-pointer backdrop-blur flex items-center justify-center"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill={isInWishlist ? "#CF8008" : "none"} stroke={isInWishlist ? "#CF8008" : "#E4DFD6"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
         </button>
         <div className="absolute bottom-4 left-5 right-5">
           <h1 className="font-display font-bold text-4xl leading-tight mb-1" style={{ color: '#FFFFFF' }}>

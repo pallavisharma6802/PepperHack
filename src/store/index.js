@@ -12,6 +12,25 @@ const INITIAL_AGENT_STATUS = {
   nutritionist: 'pending',
 }
 
+// Load history and wishlist from localStorage
+const loadHistory = () => {
+  try {
+    const saved = localStorage.getItem('pepperhack_history')
+    return saved ? JSON.parse(saved) : []
+  } catch {
+    return []
+  }
+}
+
+const loadWishlist = () => {
+  try {
+    const saved = localStorage.getItem('pepperhack_wishlist')
+    return saved ? JSON.parse(saved) : []
+  } catch {
+    return []
+  }
+}
+
 export const useStore = create((set) => ({
   // Restaurants from GET /restaurants
   restaurants: [],
@@ -34,6 +53,12 @@ export const useStore = create((set) => ({
   // Allergen filters - P4 owns the filter UI, but store is shared
   allergenFilters: [],
 
+  // History - visited restaurants with timestamp
+  history: loadHistory(),
+
+  // Wishlist - saved restaurants
+  wishlist: loadWishlist(),
+
   // Actions
   setRestaurants: (restaurants) => set({ restaurants, restaurantsError: null }),
   setRestaurantsLoading: (loading) => set({ restaurantsLoading: loading }),
@@ -55,6 +80,59 @@ export const useStore = create((set) => ({
   resetAgentStatus: () => set({ agentStatus: INITIAL_AGENT_STATUS }),
 
   setAllergenFilters: (filters) => set({ allergenFilters: filters }),
+
+  // History actions
+  addToHistory: (restaurant) => set((state) => {
+    const newHistory = [
+      { ...restaurant, visitedAt: new Date().toISOString() },
+      ...state.history.filter((r) => r.id !== restaurant.id),
+    ].slice(0, 50) // Keep last 50 visits
+    localStorage.setItem('pepperhack_history', JSON.stringify(newHistory))
+    return { history: newHistory }
+  }),
+
+  clearHistory: () => {
+    localStorage.removeItem('pepperhack_history')
+    set({ history: [] })
+  },
+
+  // Wishlist actions
+  addToWishlist: (restaurant) => set((state) => {
+    if (state.wishlist.find((r) => r.id === restaurant.id)) return {}
+    const newWishlist = [
+      { ...restaurant, addedAt: new Date().toISOString() },
+      ...state.wishlist,
+    ]
+    localStorage.setItem('pepperhack_wishlist', JSON.stringify(newWishlist))
+    return { wishlist: newWishlist }
+  }),
+
+  removeFromWishlist: (restaurantId) => set((state) => {
+    const newWishlist = state.wishlist.filter((r) => r.id !== restaurantId)
+    localStorage.setItem('pepperhack_wishlist', JSON.stringify(newWishlist))
+    return { wishlist: newWishlist }
+  }),
+
+  toggleWishlist: (restaurant) => set((state) => {
+    const exists = state.wishlist.find((r) => r.id === restaurant.id)
+    if (exists) {
+      const newWishlist = state.wishlist.filter((r) => r.id !== restaurant.id)
+      localStorage.setItem('pepperhack_wishlist', JSON.stringify(newWishlist))
+      return { wishlist: newWishlist }
+    } else {
+      const newWishlist = [
+        { ...restaurant, addedAt: new Date().toISOString() },
+        ...state.wishlist,
+      ]
+      localStorage.setItem('pepperhack_wishlist', JSON.stringify(newWishlist))
+      return { wishlist: newWishlist }
+    }
+  }),
+
+  clearWishlist: () => {
+    localStorage.removeItem('pepperhack_wishlist')
+    set({ wishlist: [] })
+  },
 
   // Merge SSE payload into dishList (P3's useAnalyzeStream does this)
   mergeAnalyzePayload: (agent, payload) => set((state) => {

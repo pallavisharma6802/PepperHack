@@ -7,6 +7,8 @@ import { RestaurantBrowser } from './pages/RestaurantBrowser'
 import { RestaurantDetail } from './pages/RestaurantDetail'
 import { MenuScan } from './pages/MenuScan'
 import { DishesResults } from './pages/DishesResults'
+import { History } from './pages/History'
+import { Wishlist } from './pages/Wishlist'
 import { useStore } from './store'
 
 function AppContent() {
@@ -31,6 +33,8 @@ function AppContent() {
       />
       <Route path="/scan/:id" element={<MenuScanWrapper onDone={handleDone} />} />
       <Route path="/dishes" element={<DishesResults />} />
+      <Route path="/history" element={<History />} />
+      <Route path="/wishlist" element={<Wishlist />} />
     </Routes>
   )
 
