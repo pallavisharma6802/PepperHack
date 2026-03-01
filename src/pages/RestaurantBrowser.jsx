@@ -10,7 +10,8 @@ import { useStore } from '../store'
 import { getRestaurants } from '../services/api'
 import { MOCK_RESTAURANTS, normalizeRestaurant } from '../data/mockRestaurants'
 
-const CUISINE_FILTERS = ['All', 'Gastropub', 'Farm-to-Table', 'Italian', 'Vietnamese', 'Mexican', 'Eclectic']
+// Dynamic filters from backend cuisines + common options
+const BASE_FILTERS = ['All']
 
 export function RestaurantBrowser({ onSelect }) {
   const [filter, setFilter] = useState('All')
@@ -33,6 +34,7 @@ export function RestaurantBrowser({ onSelect }) {
       .finally(() => setRestaurantsLoading(false))
   }, [setRestaurants, setRestaurantsLoading, setRestaurantsError])
 
+  const cuisineFilters = [...BASE_FILTERS, ...new Set(restaurants.map((r) => r.cuisine).filter(Boolean))]
   const filtered = restaurants.filter((r) => {
     if (openOnly && !r.open) return false
     if (filter !== 'All' && r.cuisine !== filter) return false
@@ -72,7 +74,7 @@ export function RestaurantBrowser({ onSelect }) {
         >
           Open Now
         </button>
-        {CUISINE_FILTERS.map((f) => (
+        {cuisineFilters.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
