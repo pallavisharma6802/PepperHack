@@ -34,6 +34,16 @@ class Config:
     API_RETRY_BACKOFF: float = 1.5
     
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    
+    # CORS configuration - comma-separated list of allowed origins
+    ALLOWED_ORIGINS: list[str] = [
+        origin.strip() 
+        for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    ]
+    
+    # Rate limiting
+    RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
+    RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))  # seconds
 
 
 DEMO_RESTAURANTS = [

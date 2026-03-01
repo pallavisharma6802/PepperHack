@@ -11,7 +11,9 @@ import contextlib
 import json
 import os
 import tempfile
+import time
 import uuid
+from collections import defaultdict
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -41,13 +43,17 @@ app = FastAPI(
     version="2.0.0",
 )
 
+# CORS configuration - uses environment-specific origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting state (in-memory, simple sliding window)
+rate_limit_state: dict[str, list[float]] = defaultdict(list)
 
 
 @contextlib.contextmanager
@@ -84,6 +90,26 @@ async def log_requests(request: Request, call_next):
                 status=response.status_code)
     
     return response
+
+
+def check_rate_limit(client_ip: str) -> bool:
+    """Check if client has exceeded rate limit."""
+    now = time.time()
+    window_start = now - config.RATE_LIMIT_WINDOW
+    
+    # Clean old entries
+    rate_limit_state[client_ip] = [
+        timestamp for timestamp in rate_limit_state[client_ip]
+        if timestamp > window_start
+    ]
+    
+    # Check limit
+    if len(rate_limit_state[client_ip]) >= config.RATE_LIMIT_REQUESTS:
+        return False
+    
+    # Add current request
+    rate_limit_state[client_ip].append(now)
+    return True
 
 
 @app.get("/")
@@ -154,12 +180,15 @@ async def stream_analyze_results_agentic(
     restaurant_id: str,
     image_path: str | None,
     restaurant_name: str,
+    request: Request,
 ) -> AsyncGenerator[str, None]:
     """
     Stream menu analysis results using ADK agentic workflow.
-    Emits SSE events as agents complete their tasks.
+    TRUE AGENT-BY-AGENT STREAMING: Each agent streams its results as it completes,
+    not all at once. This is the key requirement from the plan.
     
     CRITICAL: Cleanup temp file after streaming completes.
+    Includes client disconnect detection for graceful cleanup.
     """
     try:
         logger.info("agentic_analysis_started",
@@ -167,17 +196,27 @@ async def stream_analyze_results_agentic(
                     restaurant=restaurant_name,
                     has_image=image_path is not None)
         
+        # Check if client is still connected
+        if await request.is_disconnected():
+            logger.info("client_disconnected_early", restaurant_id=restaurant_id)
+            return
+        
         yield f"data: {SSEEvent(agent='system', status=AgentState.RUNNING, payload={{'message': 'Starting agentic workflow'}}).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
+        # AGENT 1: Scanner - Extract dishes from menu
         yield f"data: {SSEEvent(agent='scanner', status=AgentState.RUNNING, payload={}).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
-        dishes: list[Dish] = await analyze_restaurant_menu_agentic(
-            image_path=image_path,
-            restaurant_name=restaurant_name,
-            restaurant_id=restaurant_id,
-        )
+        # Check disconnect before expensive operation
+        if await request.is_disconnected():
+            logger.info("client_disconnected_before_scanner", restaurant_id=restaurant_id)
+            return
+        
+        # Import scanner here to avoid circular imports
+        from backend.agents.scanner import scan_menu_async
+        
+        dishes: list[Dish] = await scan_menu_async(image_path, restaurant_name)
         
         if not dishes:
             logger.warning("no_dishes_found", restaurant_id=restaurant_id)
@@ -185,20 +224,92 @@ async def stream_analyze_results_agentic(
             yield "data: [DONE]\n\n"
             return
         
-        logger.info("dishes_extracted_and_enriched", count=len(dishes))
+        logger.info("scanner_complete", count=len(dishes))
         
+        # Stream scanner results immediately
         yield f"data: {SSEEvent(agent='scanner', status=AgentState.DONE, payload={{'dishes': [d.model_dump() for d in dishes]}}).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
-        yield f"data: {SSEEvent(agent='photo', status=AgentState.DONE, payload={}).model_dump_json()}\n\n"
+        # Check disconnect
+        if await request.is_disconnected():
+            logger.info("client_disconnected_after_scanner", restaurant_id=restaurant_id)
+            return
+        
+        # AGENT 2: PhotoFinder - Find photos for each dish
+        yield f"data: {SSEEvent(agent='photo', status=AgentState.RUNNING, payload={}).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
-        yield f"data: {SSEEvent(agent='recommender', status=AgentState.DONE, payload={}).model_dump_json()}\n\n"
+        from backend.agents.photos import find_photos_tool
+        
+        dishes_json = [d.model_dump() for d in dishes]
+        photo_result = await find_photos_tool(dishes_json, restaurant_name, restaurant_id)
+        
+        # Update dishes with photo URLs
+        for i, dish_data in enumerate(photo_result.get("dishes", [])):
+            if i < len(dishes) and "photo_url" in dish_data:
+                dishes[i].photo_url = dish_data["photo_url"]
+        
+        logger.info("photo_finder_complete", found=photo_result.get("photos_found", 0))
+        
+        # Stream photo results immediately
+        yield f"data: {SSEEvent(agent='photo', status=AgentState.DONE, payload={{'dishes': [d.model_dump() for d in dishes]}}).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
-        yield f"data: {SSEEvent(agent='nutritionist', status=AgentState.DONE, payload={}).model_dump_json()}\n\n"
+        # Check disconnect
+        if await request.is_disconnected():
+            logger.info("client_disconnected_after_photos", restaurant_id=restaurant_id)
+            return
+        
+        # AGENT 3: Recommender - Identify must-try dishes
+        yield f"data: {SSEEvent(agent='recommender', status=AgentState.RUNNING, payload={}).model_dump_json()}\n\n"
         await asyncio.sleep(0.1)
         
+        from backend.agents.recommender import recommend_dishes_tool
+        
+        dishes_json = [d.model_dump() for d in dishes]
+        rec_result = await recommend_dishes_tool(dishes_json, restaurant_name)
+        
+        # Update dishes with recommendations
+        for i, dish_data in enumerate(rec_result.get("dishes", [])):
+            if i < len(dishes):
+                dishes[i].must_try = dish_data.get("must_try", False)
+                dishes[i].must_try_reason = dish_data.get("must_try_reason")
+        
+        logger.info("recommender_complete", recommended=rec_result.get("recommended_count", 0))
+        
+        # Stream recommender results immediately
+        yield f"data: {SSEEvent(agent='recommender', status=AgentState.DONE, payload={{'dishes': [d.model_dump() for d in dishes]}}).model_dump_json()}\n\n"
+        await asyncio.sleep(0.1)
+        
+        # Check disconnect
+        if await request.is_disconnected():
+            logger.info("client_disconnected_after_recommender", restaurant_id=restaurant_id)
+            return
+        
+        # AGENT 4: Nutritionist - Estimate macros and allergens
+        yield f"data: {SSEEvent(agent='nutritionist', status=AgentState.RUNNING, payload={}).model_dump_json()}\n\n"
+        await asyncio.sleep(0.1)
+        
+        from backend.agents.nutrition import analyze_nutrition_tool
+        
+        dishes_json = [d.model_dump() for d in dishes]
+        nutrition_result = await analyze_nutrition_tool(dishes_json)
+        
+        # Update dishes with nutrition data
+        for i, dish_data in enumerate(nutrition_result.get("dishes", [])):
+            if i < len(dishes):
+                if "macros" in dish_data and dish_data["macros"]:
+                    dishes[i].macros = dish_data["macros"]
+                if "allergens" in dish_data:
+                    dishes[i].allergens = dish_data["allergens"]
+        
+        logger.info("nutritionist_complete", analyzed=nutrition_result.get("analyzed_count", 0))
+        
+        # Stream nutritionist results immediately
+        yield f"data: {SSEEvent(agent='nutritionist', status=AgentState.DONE, payload={{'dishes': [d.model_dump() for d in dishes]}}).model_dump_json()}\n\n"
+        await asyncio.sleep(0.1)
+        
+        # Final complete event with all enriched dishes
         final_dishes = [d.model_dump() for d in dishes]
         yield f"data: {SSEEvent(agent='complete', status=AgentState.DONE, payload={{'dishes': final_dishes}}).model_dump_json()}\n\n"
         
@@ -221,20 +332,31 @@ async def stream_analyze_results_agentic(
 
 
 @app.post("/analyze")
-async def analyze_menu(request: AnalyzeRequest):
+async def analyze_menu(req_body: AnalyzeRequest, request: Request):
     """
     Analyze a restaurant menu using ADK agentic workflow.
     Streams results via Server-Sent Events.
     
     Supports mock mode for instant cached responses during development.
+    Includes rate limiting protection.
     """
+    # Rate limiting check
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip):
+        logger.warning("rate_limit_exceeded", client_ip=client_ip)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Maximum {config.RATE_LIMIT_REQUESTS} requests per {config.RATE_LIMIT_WINDOW} seconds."
+        )
+    
     logger.info("analyze_request_received",
-                restaurant_id=request.restaurant_id,
-                has_image=request.image_base64 is not None,
-                mock=request.mock)
+                restaurant_id=req_body.restaurant_id,
+                has_image=req_body.image_base64 is not None,
+                mock=req_body.mock,
+                client_ip=client_ip)
     
     # MOCK MODE: Return cached response instantly for development/testing
-    if request.mock:
+    if req_body.mock:
         logger.info("mock_mode_enabled", returning="cached_menu_response")
         
         async def stream_mock_results():
@@ -300,9 +422,9 @@ async def analyze_menu(request: AnalyzeRequest):
     # PRODUCTION MODE: Full agentic workflow
     restaurant = None
     try:
-        restaurant = await get_restaurant_details(request.restaurant_id)
+        restaurant = await get_restaurant_details(req_body.restaurant_id)
     except Exception as e:
-        logger.warning("restaurant_lookup_failed", restaurant_id=request.restaurant_id, error=str(e))
+        logger.warning("restaurant_lookup_failed", restaurant_id=req_body.restaurant_id, error=str(e))
     
     restaurant_name = restaurant.name if restaurant else ""
     
@@ -311,9 +433,9 @@ async def analyze_menu(request: AnalyzeRequest):
     image_path = None
     temp_file_handle = None
     
-    if request.image_base64:
+    if req_body.image_base64:
         try:
-            image_data = base64.b64decode(request.image_base64)
+            image_data = base64.b64decode(req_body.image_base64)
             
             # Create temp file that persists through streaming
             temp_file_handle = tempfile.NamedTemporaryFile(
@@ -333,7 +455,7 @@ async def analyze_menu(request: AnalyzeRequest):
             raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
     
     return StreamingResponse(
-        stream_analyze_results_agentic(request.restaurant_id, image_path, restaurant_name),
+        stream_analyze_results_agentic(req_body.restaurant_id, image_path, restaurant_name, request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
