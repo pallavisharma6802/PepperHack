@@ -124,7 +124,19 @@ def _apply_to_chunk(chunk: list[dict], raw: str) -> None:
             logger.warning("recommender_no_json_found")
             return
 
-        data = json.loads(raw[start:end])
+        json_str = raw[start:end]
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError:
+            # Gemini sometimes emits unescaped smart-quotes or apostrophes inside
+            # JSON strings (e.g. "Ian's Pizza"). Replace curly/smart quotes with
+            # straight equivalents and retry once.
+            json_str = (
+                json_str
+                .replace("\u2018", "'").replace("\u2019", "'")   # ' '
+                .replace("\u201c", '"').replace("\u201d", '"')   # " "
+            )
+            data = json.loads(json_str)
         recs: dict[str, dict] = {
             item["id"]: item for item in data.get("dishes", [])
         }

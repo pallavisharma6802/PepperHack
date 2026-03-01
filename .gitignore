@@ -29,7 +29,7 @@ ENV/
 .eggs/
 
 # Test artifacts
-backend/_test_schema.py
+backend/_test_*.py
 
 # IDE & editors
 .idea/
