@@ -1,11 +1,14 @@
 /**
  * MapView - Google Maps embed with dark style + amber pins.
  * Uses VITE_GOOGLE_MAPS_KEY or VITE_GOOGLE_API_KEY (same key as backend GOOGLE_API_KEY).
+ * Fetches restaurants as map moves and caches results.
  */
 import { useRef, useEffect, useState } from 'react'
+import { getRestaurants } from '../services/api'
 
 const MADISON_CENTER = { lat: 43.0731, lng: -89.4012 }
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || import.meta.env.VITE_GOOGLE_API_KEY
+const FETCH_DEBOUNCE_MS = 800 // Wait 800ms after map stops moving before fetching
 
 const DARK_MAP_STYLES = [
   { elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
@@ -15,10 +18,13 @@ const DARK_MAP_STYLES = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e2439' }] },
 ]
 
-export function MapView({ restaurants = [], selectedId, onSelect, className = '' }) {
+export function MapView({ restaurants = [], selectedId, onSelect, onMapMove, className = '' }) {
   const ref = useRef(null)
+  const mapRef = useRef(null)
   const [mapReady, setMapReady] = useState(false)
   const [scriptLoaded, setScriptLoaded] = useState(!!window.google?.maps)
+  const fetchTimeoutRef = useRef(null)
+  const locationCacheRef = useRef(new Map()) // Cache fetched locations
 
   // Load Google Maps JavaScript API (same key as backend GOOGLE_API_KEY)
   useEffect(() => {
@@ -56,6 +62,59 @@ export function MapView({ restaurants = [], selectedId, onSelect, className = ''
       fullscreenControl: true,
       gestureHandling: 'greedy',
     })
+
+    mapRef.current = map
+
+    // Fetch restaurants when map moves (debounced)
+    const handleMapMove = () => {
+      if (!onMapMove) return
+      
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current)
+      }
+
+      fetchTimeoutRef.current = setTimeout(() => {
+        const center = map.getCenter()
+        const bounds = map.getBounds()
+        if (!center || !bounds) return
+
+        const lat = center.lat()
+        const lng = center.lng()
+        
+        // Create cache key (rounded to 3 decimals ~110m precision)
+        const cacheKey = `${lat.toFixed(3)},${lng.toFixed(3)}`
+        
+        if (locationCacheRef.current.has(cacheKey)) {
+          // Already fetched this location
+          return
+        }
+
+        // Calculate radius from bounds
+        const ne = bounds.getNorthEast()
+        const sw = bounds.getSouthWest()
+        const R = 6371e3 // Earth radius in meters
+        const φ1 = (lat * Math.PI) / 180
+        const φ2 = (ne.lat() * Math.PI) / 180
+        const Δλ = ((ne.lng() - lng) * Math.PI) / 180
+        const distance = Math.acos(Math.sin(φ1) * Math.sin(φ2) + Math.cos(φ1) * Math.cos(φ2) * Math.cos(Δλ)) * R
+        const radius = Math.ceil(distance * 1.2) // 20% padding
+
+        locationCacheRef.current.set(cacheKey, true)
+        
+        // Fetch restaurants for new location
+        getRestaurants({ lat, lng, radius })
+          .then((res) => {
+            if (onMapMove && res.restaurants) {
+              onMapMove(res.restaurants)
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to fetch restaurants for map location:', err)
+          })
+      }, FETCH_DEBOUNCE_MS)
+    }
+
+    map.addListener('idle', handleMapMove)
 
     const infoWindow = new window.google.maps.InfoWindow()
     const markers = restaurants.map((r) => {
@@ -101,11 +160,14 @@ export function MapView({ restaurants = [], selectedId, onSelect, className = ''
 
     setMapReady(true)
     return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current)
+      }
       infoWindow.close()
       delete window.__mapSelectRestaurant
       markers.forEach((m) => m.setMap(null))
     }
-  }, [restaurants, selectedId, onSelect])
+  }, [restaurants, selectedId, onSelect, onMapMove])
 
   // Fallback: static map placeholder when Google Maps not loaded
   if (!window.google?.maps) {

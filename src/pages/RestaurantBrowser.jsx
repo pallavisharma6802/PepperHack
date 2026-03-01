@@ -17,6 +17,7 @@ export function RestaurantBrowser({ onSelect }) {
   const [filter, setFilter] = useState('All')
   const [openOnly, setOpenOnly] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
+  const [locationName, setLocationName] = useState('Madison')
 
   const { restaurants, setRestaurants, setRestaurantsLoading, setRestaurantsError } = useStore()
 
@@ -46,11 +47,25 @@ export function RestaurantBrowser({ onSelect }) {
     onSelect(r)
   }
 
+  const handleMapMove = (newRestaurants) => {
+    // Merge new restaurants from map movement with existing ones
+    const normalized = newRestaurants.map(normalizeRestaurant)
+    const merged = [...restaurants]
+    
+    normalized.forEach((newR) => {
+      if (!merged.find((r) => r.id === newR.id)) {
+        merged.push(newR)
+      }
+    })
+    
+    setRestaurants(merged)
+  }
+
   return (
     <div className="w-full h-full bg-bg flex flex-col overflow-hidden">
       <div className="pt-12 px-5 pb-4 animate-fadeUp">
         <div className="flex items-baseline gap-2 mb-1">
-          <span className="font-display font-bold text-3xl text-amber">Madison</span>
+          <span className="font-display font-bold text-3xl text-amber">{locationName}</span>
           <span className="font-display font-normal text-2xl text-cream italic">Restaurants</span>
         </div>
         <p className="text-xs text-muted font-ui tracking-wider">{filtered.length} spots near you</p>
@@ -61,6 +76,7 @@ export function RestaurantBrowser({ onSelect }) {
           restaurants={filtered}
           selectedId={selectedId}
           onSelect={handleSelect}
+          onMapMove={handleMapMove}
           className="h-[180px]"
         />
       </div>

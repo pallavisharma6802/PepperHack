@@ -56,11 +56,11 @@ export function RestaurantDetail({ restaurant, onScan, onBack }) {
 
       <div className="flex gap-0 py-3 px-5 border-b border-dim animate-fadeUp">
         {[
-          ['📍', 'State Street, Madison'],
-          ['⏱', '11am – 12am'],
-          ['☎', '(608) 555-0142'],
+          ['📍', restaurant.address || 'Madison, WI'],
+          ['💰', restaurant.price || (restaurant.price_level ? '$'.repeat(restaurant.price_level) : '—')],
+          ['🍴', restaurant.cuisine || '—'],
         ].map(([ic, t]) => (
-          <div key={t} className="flex-1 flex flex-col items-center gap-1">
+          <div key={ic} className="flex-1 flex flex-col items-center gap-1">
             <span className="text-base">{ic}</span>
             <span className="text-[10px] text-muted font-ui text-center tracking-wide">{t}</span>
           </div>
