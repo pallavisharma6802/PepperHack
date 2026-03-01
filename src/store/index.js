@@ -50,10 +50,11 @@ export const useStore = create((set) => ({
 
   // Merge SSE payload into dishList (P3's useAnalyzeStream does this)
   mergeAnalyzePayload: (agent, payload) => set((state) => {
-    if (agent === 'scanner' && payload.dishes) {
+    if (!payload?.dishes) return {}
+    if (agent === 'scanner' || agent === 'complete') {
       return { dishList: payload.dishes }
     }
-    if (['photo', 'recommender', 'nutritionist'].includes(agent) && payload.dishes) {
+    if (['photo', 'recommender', 'nutritionist'].includes(agent)) {
       const updated = state.dishList.map((d) => {
         const update = payload.dishes.find((p) => p.id === d.id)
         return update ? { ...d, ...update } : d

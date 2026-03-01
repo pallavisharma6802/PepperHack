@@ -54,33 +54,28 @@ export function MenuScan({ restaurant, onDone, onBack }) {
     resetScan()
     setScanPhase('scanning')
     await startCamera()
-
-    setTimeout(() => setScanPhase('processing'), 2000)
+    setScanPhase('processing')
 
     try {
       await startAnalyze({
         restaurantId: restaurant.id,
         imageBase64: null,
-        mock: true,
+        mock: true, // Use backend cached menu; set false + pass imageBase64 for real scan
       })
-    } catch (_) {
-      // Mock: simulate agents when backend not ready
-      const seq = ['scanner', 'photo', 'recommender', 'nutritionist']
-      seq.forEach((agent, i) => {
-        setTimeout(() => setAgentStatus({ [agent]: 'running' }), 2400 + i * 1600)
-        setTimeout(() => {
-          setAgentStatus({ [agent]: 'done' })
-          if (agent === 'scanner') {
-            setDishList(MOCK_DISHES.map((d, j) => ({ ...d, id: `dish_${j}` })))
-          }
-        }, 2400 + i * 1600 + 1400)
-      })
-    }
-
-    setTimeout(() => {
       setScanPhase('done')
+    } catch (err) {
+      console.error('Analyze failed:', err)
+      setDishList(MOCK_DISHES)
+      setAgentStatus({
+        scanner: 'done',
+        photo: 'done',
+        recommender: 'done',
+        nutritionist: 'done',
+      })
+      setScanPhase('done')
+    } finally {
       stopCamera()
-    }, 2400 + 4 * 1600 + 600)
+    }
   }
 
   const handleDone = () => {

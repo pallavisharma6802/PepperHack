@@ -22,10 +22,10 @@ export async function getRestaurants(params = {}) {
 }
 
 /**
- * GET /restaurant/:id - Single restaurant detail
+ * GET /restaurants/:place_id - Single restaurant detail (matches backend)
  */
-export async function getRestaurant(id) {
-  const { data } = await api.get(`/restaurant/${id}`)
+export async function getRestaurant(placeId) {
+  const { data } = await api.get(`/restaurants/${placeId}`)
   return data
 }
 
