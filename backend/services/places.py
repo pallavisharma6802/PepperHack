@@ -24,8 +24,10 @@ from backend.logger import get_logger
 
 logger = get_logger(__name__)
 
-PLACES_API_BASE = "https://places.googleapis.com/v1/places:searchNearby"
+PLACES_NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
+PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 NEARBY_MAX_PER_REQUEST = 20
+TEXT_SEARCH_PAGE_SIZE = 20
 
 
 @dataclass
@@ -85,6 +87,17 @@ def _extract_cuisine_type(types: list[str]) -> str:
     return "Restaurant"
 
 
+def _place_id(place: dict) -> str:
+    """Get place ID from Place object (handles both id and name fields)."""
+    pid = place.get("id")
+    if pid:
+        return pid
+    name = place.get("name", "")
+    if name and name.startswith("places/"):
+        return name.replace("places/", "")
+    return name or ""
+
+
 @retry(
     stop=stop_after_attempt(config.API_RETRY_ATTEMPTS),
     wait=wait_exponential(multiplier=config.API_RETRY_BACKOFF, min=1, max=10),
@@ -94,10 +107,12 @@ def _extract_cuisine_type(types: list[str]) -> str:
 def _call_places_api(url: str, headers: dict, payload: dict = None) -> dict:
     """Make HTTP request to Places API with retry logic."""
     if payload:
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
     else:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=15)
     
+    if not response.ok:
+        logger.error("places_api_error", status=response.status_code, body=response.text[:500])
     response.raise_for_status()
     return response.json()
 
@@ -121,37 +136,35 @@ async def search_restaurants(
         logger.warning("api_key_missing", fallback="demo_restaurants")
         return DEMO_RESTAURANTS
     
-    cache_key = f"search:{lat}:{lng}:{radius}:{cuisine}:{open_now}"
+    cache_key = f"search:v5:{lat}:{lng}:{radius}:{cuisine}:{open_now}"
     cached = await _cache.get(cache_key)
     if cached:
         logger.info("cache_hit", key=cache_key, count=len(cached))
         return cached
-    
+
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": config.GOOGLE_API_KEY,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.priceLevel,places.types,places.currentOpeningHours,places.photos"
+        "X-Goog-FieldMask": "places.id,places.name,places.displayName,places.formattedAddress,places.location,places.rating,places.priceLevel,places.types,places.currentOpeningHours,places.photos,nextPageToken"
     }
     
-    # Grid search: Places API caps at 20 per request, so we query 5 centers to get ~100
-    offset = radius * 0.35
-    centers = [
-        (lat, lng),
-        (lat + offset / 111000, lng),
-        (lat - offset / 111000, lng),
-        (lat, lng + offset / (111000 * 0.7)),
-        (lat, lng - offset / (111000 * 0.7)),
-    ]
-    sub_radius = int(radius * 0.6)
-    
-    async def _fetch_batch(center_lat: float, center_lng: float) -> list:
+    all_places = []
+    seen_ids = set()
+
+    def _add_place(p: dict):
+        pid = _place_id(p)
+        if pid and pid not in seen_ids:
+            seen_ids.add(pid)
+            all_places.append(p)
+
+    async def _nearby_batch(center_lat: float, center_lng: float) -> list:
         payload = {
             "includedTypes": ["restaurant"],
             "maxResultCount": NEARBY_MAX_PER_REQUEST,
             "locationRestriction": {
                 "circle": {
                     "center": {"latitude": center_lat, "longitude": center_lng},
-                    "radius": sub_radius
+                    "radius": int(radius * 0.55)
                 }
             }
         }
@@ -159,32 +172,37 @@ async def search_restaurants(
         data = await loop.run_in_executor(
             None,
             _call_places_api,
-            PLACES_API_BASE,
+            PLACES_NEARBY_URL,
             headers,
             payload,
         )
         return data.get("places", [])
-    
+
     try:
-        logger.info("calling_places_api_grid", centers=len(centers), radius=radius)
-        results = await asyncio.gather(*[_fetch_batch(clat, clng) for clat, clng in centers])
-        all_places = []
-        seen_ids = set()
+        deg_per_km = 1 / 111.0
+        d = (radius / 1000) * 0.35 * deg_per_km
+        centers = [
+            (lat, lng),
+            (lat + d, lng), (lat - d, lng), (lat, lng + d), (lat, lng - d),
+            (lat + d, lng + d), (lat + d, lng - d), (lat - d, lng + d), (lat - d, lng - d),
+        ]
+        results = await asyncio.gather(*[_nearby_batch(clat, clng) for clat, clng in centers])
         for places in results:
             for p in places:
-                pid = p.get("id")
-                if pid and pid not in seen_ids:
-                    seen_ids.add(pid)
-                    all_places.append(p)
+                _add_place(p)
         logger.info("places_api_success", count=len(all_places))
-        
     except Exception as e:
-        logger.error("places_api_failed", error=str(e), fallback="demo_restaurants")
-        return DEMO_RESTAURANTS
+        logger.error("places_api_failed", error=str(e), exc_info=True)
+        if config.DEMO_MODE:
+            return DEMO_RESTAURANTS
+        raise
     
     restaurants = []
     for place in all_places[:config.MAX_RESTAURANTS]:
         try:
+            pid = _place_id(place)
+            if not pid:
+                continue
             photo_url = None
             if place.get("photos"):
                 photo_name = place["photos"][0].get("name")
@@ -192,7 +210,7 @@ async def search_restaurants(
                     photo_url = f"https://places.googleapis.com/v1/{photo_name}/media?maxHeightPx=800&key={config.GOOGLE_API_KEY}"
             
             restaurant = Restaurant(
-                id=place["id"],
+                id=pid,
                 name=place.get("displayName", {}).get("text", "Unknown"),
                 cuisine=_extract_cuisine_type(place.get("types", [])),
                 address=place.get("formattedAddress", ""),
@@ -205,7 +223,7 @@ async def search_restaurants(
             )
             restaurants.append(restaurant)
         except Exception as e:
-            logger.warning("place_parsing_error", place_id=place.get("id"), error=str(e))
+            logger.warning("place_parsing_error", place_id=_place_id(place), error=str(e))
             continue
     
     await _cache.set(cache_key, restaurants)
