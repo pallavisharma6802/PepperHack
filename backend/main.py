@@ -182,6 +182,42 @@ async def get_restaurant(place_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# In-memory cache: place_id → enriched menu response dict
+_menu_cache: dict[str, dict] = {}
+# Track which place_ids are currently being enriched (avoid duplicate work)
+_enriching: set[str] = set()
+
+
+async def _enrich_and_cache(place_id: str, restaurant_name: str,
+                             dishes_dicts: list, result: dict) -> None:
+    """Background task: enrich dishes with photos + nutrition, then cache."""
+    _enriching.add(place_id)
+    try:
+        from backend.agents.photos import find_photos_tool
+        from backend.agents.nutrition import analyze_nutrition_tool
+
+        await asyncio.gather(
+            find_photos_tool(dishes_dicts, restaurant_name, place_id),
+            analyze_nutrition_tool(dishes_dicts),
+        )
+
+        logger.info("menu_enrichment_complete",
+                    place_id=place_id,
+                    photos=sum(1 for d in dishes_dicts if d.get("photo_url")),
+                    with_allergens=sum(1 for d in dishes_dicts if d.get("allergens")),
+                    with_macros=sum(1 for d in dishes_dicts if d.get("macros")))
+
+        # dishes_dicts was mutated in-place; store enriched result in cache
+        _menu_cache[place_id] = result
+
+    except Exception as e:
+        logger.error("menu_enrichment_failed", place_id=place_id, error=str(e))
+        # Cache the basic (un-enriched) result so next call doesn't re-scrape
+        _menu_cache[place_id] = result
+    finally:
+        _enriching.discard(place_id)
+
+
 @app.get("/restaurants/{place_id}/menu")
 async def get_restaurant_menu_endpoint(place_id: str):
     """
@@ -189,8 +225,15 @@ async def get_restaurant_menu_endpoint(place_id: str):
     1. Restaurant's own website (from Places API websiteUri)
     2. Serper.dev web search → Yelp or other menu pages
 
-    Returns a list of dishes in the same format as /analyze.
+    Returns dishes immediately after scraping; enrichment (photos, nutrition)
+    runs in the background and is cached for instant subsequent calls.
     """
+    # Fast path: return cached enriched result
+    if place_id in _menu_cache:
+        logger.info("menu_cache_hit", place_id=place_id,
+                    dish_count=len(_menu_cache[place_id].get("dishes", [])))
+        return _menu_cache[place_id]
+
     try:
         from backend.services.scraper import get_menu_for_restaurant
 
@@ -205,27 +248,25 @@ async def get_restaurant_menu_endpoint(place_id: str):
                     restaurant=restaurant_name,
                     dish_count=len(dishes))
 
-        # Enrich dishes with photos + nutrition/allergens concurrently
-        from backend.agents.photos import find_photos_tool
-        from backend.agents.nutrition import analyze_nutrition_tool
         dishes_dicts = [d.model_dump() for d in dishes]
-        await asyncio.gather(
-            find_photos_tool(dishes_dicts, restaurant_name, place_id),
-            analyze_nutrition_tool(dishes_dicts),
-        )
-
-        logger.info("menu_enrichment_complete",
-                    place_id=place_id,
-                    photos=sum(1 for d in dishes_dicts if d.get("photo_url")),
-                    with_allergens=sum(1 for d in dishes_dicts if d.get("allergens")),
-                    with_macros=sum(1 for d in dishes_dicts if d.get("macros")))
-
-        return {
+        result = {
             "restaurant_id": place_id,
             "restaurant_name": restaurant_name,
             "dishes": dishes_dicts,
             "total": len(dishes_dicts),
         }
+
+        # Cache basic result NOW so any concurrent/repeat requests are instant
+        _menu_cache[place_id] = result
+
+        # Kick off enrichment in background — updates cache in-place when done
+        if place_id not in _enriching:
+            asyncio.create_task(
+                _enrich_and_cache(place_id, restaurant_name, dishes_dicts, result)
+            )
+
+        # Return the basic dishes immediately (enrichment adds photos/nutrition later)
+        return result
 
     except Exception as e:
         logger.error("menu_fetch_failed", place_id=place_id, error=str(e), exc_info=True)
