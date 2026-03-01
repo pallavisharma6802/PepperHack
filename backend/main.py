@@ -29,7 +29,7 @@ from backend.schema import (
     AgentState,
     Dish,
 )
-from backend.services.places import search_restaurants, get_restaurant_details
+from backend.services.places import search_restaurants, get_restaurant_details, clear_cache
 from backend.agents.root import analyze_restaurant_menu_agentic
 from backend.config import config
 from backend.logger import setup_logging, get_logger
@@ -124,6 +124,13 @@ async def health_check():
     }
 
 
+@app.post("/restaurants/clear-cache")
+async def clear_restaurants_cache():
+    """Clear the Places API cache to force fresh fetches."""
+    await clear_cache()
+    return {"status": "ok", "message": "Cache cleared"}
+
+
 @app.get("/restaurants", response_model=RestaurantsResponse)
 async def get_restaurants(
     lat: float = config.MADISON_LAT,
@@ -134,13 +141,12 @@ async def get_restaurants(
 ):
     """
     Search for restaurants near coordinates.
-    Falls back to demo data if API fails.
+    Uses Places API grid search for up to 100 results.
     """
     try:
         logger.info("restaurant_search_requested",
                     lat=lat, lng=lng, radius=radius,
                     cuisine=cuisine, open_now=open_now)
-        
         restaurants = await search_restaurants(lat, lng, radius, cuisine, open_now)
         
         logger.info("restaurant_search_complete", count=len(restaurants))
