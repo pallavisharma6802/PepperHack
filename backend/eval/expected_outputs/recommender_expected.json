@@ -1,0 +1,17 @@
+{
+  "description": "Expected recommender behaviour for Taiwan Little Eats. At least one of the known_must_try dishes must be flagged. All flagged dishes must have a non-null reason.",
+  "restaurant": "Taiwan Little Eats",
+  "dishes": [
+    {"id": "eval_001", "name": "Scallion Pancake",        "description": ""},
+    {"id": "eval_002", "name": "Pork Chop Rice",          "description": ""},
+    {"id": "eval_003", "name": "Bubble Milk Tea",         "description": ""},
+    {"id": "eval_004", "name": "Beef Noodle Soup",        "description": ""},
+    {"id": "eval_005", "name": "Giant Fried Chicken Cutlet", "description": ""}
+  ],
+  "rules": {
+    "min_must_try_count": 1,
+    "max_must_try_ratio": 0.8,
+    "must_try_reason_required": true,
+    "known_must_try_names": ["Scallion Pancake", "Pork Chop Rice", "Bubble Milk Tea", "Giant Fried Chicken Cutlet"]
+  }
+}

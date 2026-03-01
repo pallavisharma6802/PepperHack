@@ -1,0 +1,75 @@
+{
+  "description": "Expected nutrition ranges for well-known dishes. Used by eval/run_eval.py to catch prompt regressions.",
+  "dishes": [
+    {
+      "id": "eval_001",
+      "name": "Caesar Salad",
+      "description": "Romaine lettuce, parmesan, croutons, Caesar dressing",
+      "expected": {
+        "calories_range": [300, 650],
+        "protein_range": [8, 25],
+        "carbs_range": [10, 40],
+        "fat_range": [15, 45],
+        "confidence": "high",
+        "required_allergens": ["Gluten", "Dairy"],
+        "forbidden_allergens": ["Shellfish"]
+      }
+    },
+    {
+      "id": "eval_002",
+      "name": "Butter Burger",
+      "description": "Beef patty, butter-toasted bun, American cheese, caramelized onions",
+      "expected": {
+        "calories_range": [550, 1100],
+        "protein_range": [28, 60],
+        "carbs_range": [25, 65],
+        "fat_range": [30, 75],
+        "confidence": "high",
+        "required_allergens": ["Gluten", "Dairy"],
+        "forbidden_allergens": []
+      }
+    },
+    {
+      "id": "eval_003",
+      "name": "Pad Thai",
+      "description": "Rice noodles, shrimp, egg, bean sprouts, peanuts, tamarind sauce",
+      "expected": {
+        "calories_range": [500, 950],
+        "protein_range": [20, 50],
+        "carbs_range": [60, 110],
+        "fat_range": [15, 45],
+        "confidence": "high",
+        "required_allergens": ["Shellfish", "Nuts", "Eggs"],
+        "forbidden_allergens": []
+      }
+    },
+    {
+      "id": "eval_004",
+      "name": "Mango Sticky Rice",
+      "description": "Sweet glutinous rice, fresh mango, coconut milk",
+      "expected": {
+        "calories_range": [300, 600],
+        "protein_range": [3, 12],
+        "carbs_range": [55, 100],
+        "fat_range": [8, 28],
+        "confidence": "high",
+        "required_allergens": [],
+        "forbidden_allergens": ["Shellfish", "Gluten"]
+      }
+    },
+    {
+      "id": "eval_005",
+      "name": "Chef's Mystery Special",
+      "description": "",
+      "expected": {
+        "calories_range": [200, 1200],
+        "protein_range": [0, 80],
+        "carbs_range": [0, 120],
+        "fat_range": [0, 80],
+        "confidence": "low",
+        "required_allergens": [],
+        "forbidden_allergens": []
+      }
+    }
+  ]
+}
