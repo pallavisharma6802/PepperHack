@@ -15,8 +15,7 @@ from typing import Any
 
 import google.genai as genai
 from google.genai import types
-from google.adk.agents import Agent
-from google.adk.tools import FunctionTool
+from google.adk import Agent
 
 from backend.schema import Dish, AllergenTag, MacroConfidence, Macros
 from backend.config import config
@@ -144,7 +143,7 @@ nutrition_agent = Agent(
     name="Nutritionist",
     description="Infers nutritional macros and allergens for dishes using Gemini reasoning",
     model="gemini-2.5-flash",
-    tools=[FunctionTool(analyze_nutrition_tool)],
+    tools=[analyze_nutrition_tool],
     instruction="""You are a nutrition analysis expert for MadisonBites.
 When given dishes, use analyze_nutrition_tool to:
 1. Reason through likely ingredients and portion sizes

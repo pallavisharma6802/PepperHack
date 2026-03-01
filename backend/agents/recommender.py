@@ -16,8 +16,7 @@ from typing import Any
 
 import google.genai as genai
 from google.genai import types
-from google.adk.agents import Agent
-from google.adk.tools import FunctionTool
+from google.adk import Agent
 
 from backend.schema import Dish
 from backend.config import config
@@ -78,6 +77,9 @@ async def recommend_dishes_tool(dishes_json: list[dict], restaurant_name: str) -
         await loop.run_in_executor(None, _process_chunk, chunk, restaurant_name)
 
     recommended_count = sum(1 for d in dishes_json if d.get("must_try", False))
+    logger.info("recommendation_complete", recommended=recommended_count, total=len(dishes_json))
+    
+    return {"dishes": dishes_json, "recommended_count": recommended_count}
     logger.info("recommendation_complete", recommended=recommended_count, total=len(dishes_json))
 
     return {"dishes": dishes_json, "recommended_count": recommended_count}
@@ -160,7 +162,7 @@ recommendation_agent = Agent(
     name="DishRecommender",
     description="Identifies must-try dishes by researching online reviews via Google Search",
     model="gemini-2.5-flash",
-    tools=[FunctionTool(recommend_dishes_tool)],
+    tools=[recommend_dishes_tool],
     instruction="""You are a dish recommendation expert for MadisonBites.
 When given dishes from a Madison, WI restaurant, use recommend_dishes_tool to:
 1. Search Reddit r/madisonwi, Google Maps reviews, and food blogs

@@ -176,6 +176,35 @@ async def get_restaurant(place_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/restaurants/{place_id}/menu")
+async def get_restaurant_menu_endpoint(place_id: str):
+    """
+    Get pre-scraped menu for a restaurant from Google Maps/web scraping.
+    Falls back to cached/mock data if no menu available.
+    Returns dishes in same format as /analyze endpoint.
+    """
+    try:
+        from backend.services.menu_scraper import get_restaurant_menu
+        
+        # Get restaurant name for context
+        restaurant = await get_restaurant_details(place_id)
+        restaurant_name = restaurant.name if restaurant else ""
+        
+        # Use the menu scraper service
+        menu_data = await get_restaurant_menu(place_id, restaurant_name)
+        
+        logger.info("menu_fetch_complete", 
+                   place_id=place_id,
+                   dish_count=len(menu_data.get("dishes", [])),
+                   source=menu_data.get("source"))
+        
+        return menu_data
+        
+    except Exception as e:
+        logger.error("menu_fetch_failed", place_id=place_id, error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def stream_analyze_results_agentic(
     restaurant_id: str,
     image_path: str | None,
