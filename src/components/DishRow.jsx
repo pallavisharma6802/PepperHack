@@ -36,30 +36,16 @@ export function DishRow({ dish }) {
       style={{ touchAction: 'manipulation', borderBottom: '1px solid #E4DFD6' }}
     >
       {/* Thumbnail */}
-      <div className="relative flex-shrink-0 w-[68px] h-[68px] rounded-3xl overflow-hidden bg-[#f0f0f0]" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-        {dish.photo_url && 
-         !dish.photo_url.includes('placeholder') && 
-         !dish.photo_url.includes('photo-1504674900247-0877df9cc836') ? (
+      <div className="relative flex-shrink-0 w-[68px] h-[68px] rounded-3xl overflow-hidden bg-bg2" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+        {dish.photo_url ? (
           <img
             src={dish.photo_url}
             alt={dish.name}
             className="w-full h-full object-cover dish-develop"
             loading="lazy"
-            onError={(e) => {
-              e.target.style.display = 'none'
-              e.target.parentElement.innerHTML = `
-                <div class="w-full h-full flex flex-col items-center justify-center text-center px-2">
-                  <div class="text-4xl opacity-20 mb-1">📄</div>
-                  <div class="text-[7px] text-gray-400 font-ui leading-tight">No photo</div>
-                </div>
-              `
-            }}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-center px-2">
-            <div className="text-4xl opacity-20 mb-1">📄</div>
-            <div className="text-[7px] text-gray-400 font-ui leading-tight">No photo</div>
-          </div>
+          <div className="w-full h-full flex items-center justify-center text-xl opacity-20">🍽</div>
         )}
         {dish.must_try && (
           <div className="absolute inset-0 rounded-2xl" style={{ boxShadow: 'inset 0 0 0 1.5px rgba(245,166,35,0.5)' }} />

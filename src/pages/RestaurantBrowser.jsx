@@ -4,7 +4,6 @@
  */
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
 import { MapView } from '../components/MapView'
 import { RestaurantCard } from '../components/RestaurantCard'
 import { useStore } from '../store'
@@ -15,14 +14,12 @@ import { MOCK_RESTAURANTS, normalizeRestaurant } from '../data/mockRestaurants'
 const BASE_FILTERS = ['All']
 
 export function RestaurantBrowser({ onSelect }) {
-  const navigate = useNavigate()
   const [filter, setFilter] = useState('All')
   const [openOnly, setOpenOnly] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [locationName, setLocationName] = useState('Madison')
-  const [searchQuery, setSearchQuery] = useState('')
 
-  const { restaurants, setRestaurants, setRestaurantsLoading, setRestaurantsError, wishlist, history } = useStore()
+  const { restaurants, setRestaurants, setRestaurantsLoading, setRestaurantsError } = useStore()
 
   useEffect(() => {
     setRestaurantsLoading(true)
@@ -42,7 +39,6 @@ export function RestaurantBrowser({ onSelect }) {
   const filtered = restaurants.filter((r) => {
     if (openOnly && !r.open) return false
     if (filter !== 'All' && r.cuisine !== filter) return false
-    if (searchQuery && !r.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   })
 
@@ -68,47 +64,15 @@ export function RestaurantBrowser({ onSelect }) {
   return (
     <div className="w-full h-full bg-bg flex flex-col overflow-hidden">
       <div className="pt-14 px-5 pb-4 animate-fadeUp">
-        <div className="flex items-center justify-between mb-1.5">
-          <p className="text-[9px] font-ui font-bold tracking-[0.22em] uppercase text-muted/60">{locationName}, WI</p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => navigate('/history')}
-              className="relative w-8 h-8 rounded-full bg-surface border border-dim flex items-center justify-center"
-            >
-              <span className="text-base">🕐</span>
-              {history.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-bg text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {history.length > 9 ? '9+' : history.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => navigate('/wishlist')}
-              className="relative w-8 h-8 rounded-full bg-surface border border-dim flex items-center justify-center"
-            >
-              <span className="text-base">❤️</span>
-              {wishlist.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-bg text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {wishlist.length > 9 ? '9+' : wishlist.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
+        <p className="text-[9px] font-ui font-bold tracking-[0.22em] uppercase text-muted/60 mb-1.5">{locationName}, WI</p>
         <h1 className="font-display font-bold text-[38px] text-cream leading-none mb-4">Restaurants</h1>
         {/* Search bar */}
         <div className="flex items-center gap-3 bg-surface rounded-3xl px-4 py-3" style={{ border: '1px solid #E4DFD6', boxShadow: '0 1px 10px rgba(0,0,0,0.05)' }}>
           <svg width="15" height="15" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ color: '#8A7E6E', flexShrink: 0 }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <input
-            type="text"
-            placeholder="Search restaurants..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 text-[13px] font-ui bg-transparent outline-none text-cream placeholder:text-muted/60"
-          />
-          <span className="text-[11px] font-ui text-muted/40">{filtered.length} nearby</span>
+          <span className="text-[13px] font-ui text-muted/60">Search restaurants...</span>
+          <span className="ml-auto text-[11px] font-ui text-muted/40">{filtered.length} nearby</span>
         </div>
       </div>
 

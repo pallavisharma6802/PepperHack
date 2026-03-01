@@ -22,7 +22,7 @@ export function RestaurantCard({ restaurant, onClick, animationDelay = 0 }) {
         src={photo || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600'}
         alt={name}
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: open ? 'brightness(0.80)' : 'grayscale(1) brightness(0.15)' }}
+        style={{ filter: open ? 'brightness(0.80)' : 'grayscale(0.6) brightness(0.50)' }}
       />
 
       {/* Gradient overlay — left-heavy so text pops */}
