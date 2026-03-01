@@ -21,7 +21,7 @@ export function DishesResults() {
       <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-dim">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 bg-transparent border-none text-cream cursor-pointer text-sm font-ui"
+          className="flex items-center gap-2 bg-bg2 border border-dim rounded-2xl px-3 py-1.5 text-cream cursor-pointer text-sm font-ui"
         >
           <span className="text-lg">←</span>
           Back

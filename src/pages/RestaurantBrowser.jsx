@@ -63,15 +63,20 @@ export function RestaurantBrowser({ onSelect }) {
 
   return (
     <div className="w-full h-full bg-bg flex flex-col overflow-hidden">
-      <div className="pt-12 px-5 pb-4 animate-fadeUp">
-        <div className="flex items-baseline gap-2 mb-1">
-          <span className="font-display font-bold text-3xl text-amber">{locationName}</span>
-          <span className="font-display font-normal text-2xl text-cream italic">Restaurants</span>
+      <div className="pt-14 px-5 pb-4 animate-fadeUp">
+        <p className="text-[9px] font-ui font-bold tracking-[0.22em] uppercase text-muted/60 mb-1.5">{locationName}, WI</p>
+        <h1 className="font-display font-bold text-[38px] text-cream leading-none mb-4">Restaurants</h1>
+        {/* Search bar */}
+        <div className="flex items-center gap-3 bg-surface rounded-3xl px-4 py-3" style={{ border: '1px solid #E4DFD6', boxShadow: '0 1px 10px rgba(0,0,0,0.05)' }}>
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ color: '#8A7E6E', flexShrink: 0 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <span className="text-[13px] font-ui text-muted/60">Search restaurants...</span>
+          <span className="ml-auto text-[11px] font-ui text-muted/40">{filtered.length} nearby</span>
         </div>
-        <p className="text-xs text-muted font-ui tracking-wider">{filtered.length} spots near you</p>
       </div>
 
-      <div className="mx-5 mb-4">
+      <div className="mx-5 mb-4 rounded-3xl overflow-hidden" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
         <MapView
           restaurants={filtered}
           selectedId={selectedId}
@@ -84,8 +89,8 @@ export function RestaurantBrowser({ onSelect }) {
       <div className="flex gap-2 px-5 py-3 overflow-x-auto">
         <button
           onClick={() => setOpenOnly(!openOnly)}
-          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold font-ui tracking-wider cursor-pointer border-none transition-all ${
-            openOnly ? 'bg-safe text-black' : 'bg-surface text-muted'
+          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold font-ui tracking-wider cursor-pointer transition-all border ${
+            openOnly ? 'bg-cream text-surface border-cream' : 'bg-surface text-muted border-dim'
           }`}
         >
           Open Now
@@ -94,8 +99,8 @@ export function RestaurantBrowser({ onSelect }) {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold font-ui tracking-wider cursor-pointer border-none transition-all ${
-              filter === f ? 'bg-amber text-black' : 'bg-surface text-muted'
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold font-ui tracking-wider cursor-pointer transition-all border ${
+              filter === f ? 'bg-cream text-surface border-cream' : 'bg-surface text-muted border-dim'
             }`}
           >
             {f}

@@ -29,18 +29,18 @@ export function AgentStatusBar() {
         return (
           <motion.div
             key={agent.id}
-            className="flex items-center gap-3 px-3 py-2 rounded-xl border transition-all duration-300"
+            className="flex items-center gap-3 px-3 py-2 rounded-2xl border transition-all duration-300"
             style={{
               background: isDone
-                ? 'rgba(245,166,35,0.06)'
+                ? 'rgba(207,128,8,0.06)'
                 : isRunning
-                  ? 'rgba(245,166,35,0.04)'
-                  : 'rgba(28,22,16,0.5)',
+                  ? 'rgba(207,128,8,0.04)'
+                  : 'rgba(0,0,0,0.02)',
               borderColor: isDone
-                ? 'rgba(245,166,35,0.25)'
+                ? 'rgba(207,128,8,0.25)'
                 : isRunning
-                  ? 'rgba(245,166,35,0.15)'
-                  : 'var(--tw-color-dim)',
+                  ? 'rgba(207,128,8,0.15)'
+                  : '#E4DFD6',
             }}
           >
             <div className="relative w-2.5 h-2.5 flex-shrink-0">
@@ -48,12 +48,12 @@ export function AgentStatusBar() {
                 className="w-2.5 h-2.5 rounded-full"
                 style={{
                   background: isError
-                    ? 'var(--tw-color-danger)'
+                    ? '#DC2626'
                     : isDone
-                      ? 'var(--tw-color-safe)'
+                      ? '#16A34A'
                       : isRunning
-                        ? 'var(--tw-color-amber)'
-                        : 'var(--tw-color-dim)',
+                        ? '#CF8008'
+                        : '#D4CFC8',
                 }}
                 animate={isRunning ? { scale: [1, 1.5, 1], opacity: [0.7, 1, 0.7] } : {}}
                 transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
@@ -69,7 +69,7 @@ export function AgentStatusBar() {
             <span
               className="text-sm font-mono"
               style={{
-                color: isDone || isRunning ? 'var(--tw-color-amber)' : 'var(--tw-color-dim)',
+                color: isDone || isRunning ? '#CF8008' : '#C4BEB6',
               }}
             >
               {agent.icon}
@@ -77,7 +77,7 @@ export function AgentStatusBar() {
             <span
               className="flex-1 text-sm font-ui"
               style={{
-                color: isDone || isRunning ? 'var(--tw-color-cream)' : 'var(--tw-color-muted)',
+                color: isDone || isRunning ? '#1A1714' : '#8A7E6E',
               }}
             >
               {agent.label}

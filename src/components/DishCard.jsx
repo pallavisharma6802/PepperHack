@@ -46,8 +46,8 @@ export function DishCard({ dish }) {
 
       {/* Sheet */}
       <motion.div
-        className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl bg-surface border-t border-dim overflow-hidden"
-        style={{ height: '70vh', maxWidth: 390, margin: '0 auto', touchAction: 'none' }}
+        className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-3xl bg-surface overflow-hidden"
+        style={{ height: '70vh', maxWidth: 390, margin: '0 auto', touchAction: 'none', boxShadow: '0 -8px 40px rgba(0,0,0,0.10)' }}
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
@@ -65,13 +65,17 @@ export function DishCard({ dish }) {
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-5 pb-8" style={{ overscrollBehavior: 'contain' }}>
 
-          {/* Hero photo */}
+          {/* Hero photo — full bleed with fade-to-bg */}
           {dish.photo_url && (
-            <div className="w-full h-48 rounded-2xl overflow-hidden mb-4 bg-bg2">
+            <div className="relative -mx-5 h-52 overflow-hidden mb-5">
               <img
                 src={dish.photo_url}
                 alt={dish.name}
                 className="w-full h-full object-cover dish-develop"
+              />
+              <div
+                className="absolute bottom-0 inset-x-0 h-24"
+                style={{ background: 'linear-gradient(to bottom, transparent, #FFFFFF)' }}
               />
             </div>
           )}
@@ -109,9 +113,9 @@ export function DishCard({ dish }) {
 
           {/* ── Macros ── */}
           {macros && (
-            <div className="mb-5">
+            <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-ui font-semibold text-cream tracking-wider uppercase">Nutrition</h3>
+                <h3 className="text-[10px] font-ui font-bold text-muted/70 tracking-[0.18em] uppercase">Nutrition</h3>
                 {lowConf && (
                   <span className="text-[10px] font-ui text-muted italic">~ estimated</span>
                 )}
@@ -136,7 +140,7 @@ export function DishCard({ dish }) {
           {/* ── Allergen pills ── */}
           {allergens.length > 0 && (
             <div className="mb-4">
-              <h3 className="text-sm font-ui font-semibold text-cream tracking-wider uppercase mb-2">Allergens</h3>
+              <h3 className="text-[10px] font-ui font-bold text-muted/70 tracking-[0.18em] uppercase mb-2">Allergens</h3>
               <div className="flex flex-wrap gap-2">
                 {allergens.map((a) => {
                   const hit = activeAllergens.has(a)
@@ -161,7 +165,7 @@ export function DishCard({ dish }) {
           {/* ── Ingredients ── */}
           {ingredients.length > 0 && (
             <div>
-              <h3 className="text-sm font-ui font-semibold text-cream tracking-wider uppercase mb-2">Ingredients</h3>
+              <h3 className="text-[10px] font-ui font-bold text-muted/70 tracking-[0.18em] uppercase mb-2">Ingredients</h3>
               <div className="flex flex-wrap gap-1.5">
                 {ingredients.map((ing) => (
                   <span

@@ -57,27 +57,27 @@ export function MenuDisplay() {
       {/* ── Sticky header ── */}
       <div className="flex-shrink-0 px-5 pt-3 pb-2">
         <div className="flex items-center justify-between mb-3">
-          <p className="font-display font-semibold text-lg text-cream">
+          <p className="font-display font-semibold text-xl text-cream">
             {dishList.length > 0 ? `${dishList.length} dishes` : 'Menu'}
           </p>
           <button
             onClick={() => setFilterOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-dim text-xs font-ui text-muted cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dim text-[11px] font-ui text-muted cursor-pointer hover:border-amber/50 hover:text-amber transition-colors"
           >
-            ⚗ Allergens
+            ⚗ Filters
           </button>
         </div>
 
         {/* Category tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold font-ui tracking-wider cursor-pointer border-none transition-all ${
+              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold font-ui tracking-wide cursor-pointer transition-all ${
                 activeCategory === cat
                   ? 'bg-amber text-black'
-                  : 'bg-surface text-muted'
+                  : 'text-muted border border-dim'
               }`}
             >
               {cat}

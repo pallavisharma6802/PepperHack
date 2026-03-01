@@ -41,7 +41,7 @@ export function MacroRing({ label, value, max, color, lowConf = false }) {
         {/* Track */}
         <circle
           cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
-          fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={STROKE_W}
+          fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={STROKE_W}
         />
         {/* Value */}
         <circle
@@ -60,7 +60,7 @@ export function MacroRing({ label, value, max, color, lowConf = false }) {
         <text
           x="50%" y="50%"
           textAnchor="middle" dominantBaseline="middle"
-          fontSize="13" fontWeight="700" fill="#f7efe0"
+          fontSize="13" fontWeight="700" fill="#1A1714"
         >
           {display}
         </text>

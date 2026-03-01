@@ -28,15 +28,15 @@ export function DishRow({ dish }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: flagged ? 0.3 : 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: flagged ? 0.25 : 1, y: 0 }}
+      transition={{ duration: 0.25 }}
       onClick={handleTap}
-      className="flex items-center gap-3 py-3 border-b border-dim cursor-pointer active:bg-surface/60 rounded-lg px-1"
-      style={{ touchAction: 'manipulation' }}
+      className="flex items-center gap-3.5 py-3.5 cursor-pointer active:opacity-70 transition-opacity"
+      style={{ touchAction: 'manipulation', borderBottom: '1px solid #E4DFD6' }}
     >
       {/* Thumbnail */}
-      <div className="relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-surface">
+      <div className="relative flex-shrink-0 w-[68px] h-[68px] rounded-3xl overflow-hidden bg-bg2" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
         {dish.photo_url ? (
           <img
             src={dish.photo_url}
@@ -45,40 +45,38 @@ export function DishRow({ dish }) {
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-2xl opacity-30">🍽</div>
+          <div className="w-full h-full flex items-center justify-center text-xl opacity-20">🍽</div>
         )}
         {dish.must_try && (
-          <span className="absolute top-1 left-1 text-xs must-try-badge">🔥</span>
+          <div className="absolute inset-0 rounded-2xl" style={{ boxShadow: 'inset 0 0 0 1.5px rgba(245,166,35,0.5)' }} />
         )}
       </div>
 
       {/* Text */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="font-display font-semibold text-cream truncate text-[15px]">{dish.name}</p>
+        <div className="flex items-center gap-2 mb-0.5">
+          <p className="font-display font-semibold text-cream truncate text-[16px] leading-tight">{dish.name}</p>
           {dish.must_try && (
-            <span className="must-try-badge flex-shrink-0 text-[9px] font-bold font-ui tracking-widest uppercase text-amber bg-amber/10 px-1.5 py-0.5 rounded-full border border-amber/20">
-              Must Try
+            <span className="flex-shrink-0 text-[8px] font-bold font-ui tracking-[0.14em] uppercase text-amber/80 bg-amber/8 px-1.5 py-0.5 rounded-full border border-amber/15">
+              🔥 Must Try
             </span>
           )}
         </div>
         {dish.description && (
-          <p className="text-[12px] text-muted font-ui truncate mt-0.5">{dish.description}</p>
+          <p className="text-[11px] text-muted/70 font-ui truncate leading-snug">{dish.description}</p>
         )}
         {flagged && (
-          <p className="text-[10px] text-danger font-ui mt-0.5 flex items-center gap-1">
-            <span>⚠</span> Contains allergen
-          </p>
+          <p className="text-[10px] text-danger/80 font-ui mt-0.5">⚠ allergen</p>
         )}
       </div>
 
-      {/* Price + calorie pill */}
+      {/* Calorie pill */}
       <div className="flex-shrink-0 flex flex-col items-end gap-1">
         {dish.price && (
-          <span className="text-sm font-semibold font-ui text-cream">{dish.price}</span>
+          <span className="text-[12px] font-semibold font-ui text-cream/70">{dish.price}</span>
         )}
         {cal != null && (
-          <span className="text-[10px] font-bold font-ui px-2 py-0.5 rounded-full bg-surface text-amber border border-dim">
+          <span className="text-[10px] font-bold font-ui px-2.5 py-1 rounded-full text-amber/90" style={{ background: 'rgba(207,128,8,0.08)', border: '1px solid rgba(207,128,8,0.20)' }}>
             {lowConf ? `~${cal}` : cal} cal
           </span>
         )}

@@ -11,11 +11,11 @@ const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || import.meta.env.VITE_GO
 const FETCH_DEBOUNCE_MS = 800 // Wait 800ms after map stops moving before fetching
 
 const DARK_MAP_STYLES = [
-  { elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#7a6a55' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1c1610' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a3020' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e2439' }] },
+  { elementType: 'geometry', stylers: [{ color: '#F0EDE8' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#8A7E6E' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#FFFFFF' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#E4DFD6' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#C8DCF0' }] },
 ]
 
 export function MapView({ restaurants = [], selectedId, onSelect, onMapMove, className = '' }) {
